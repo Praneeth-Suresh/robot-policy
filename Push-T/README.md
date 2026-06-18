@@ -1,49 +1,53 @@
-# Push-T Project Run Guide
+# Push-T Benchmark Guide
 
-This project uses package imports such as `from core.dataset import ...`.
-Therefore, run all scripts from the project root with `python -m`.
+`Push-T/` contains the benchmark-specific training and inference scripts used in
+this repository.
 
-Do not run scripts by absolute file path, for example:
+The recommended entrypoint is the repository root:
 
-```bash
-python /home/users/meiyi/Guided_SI_RSS/Push-T-new/inference/dynamic/inference_ccg_dynamic.py
-```
-
-That will make Python search from the script folder and may cause:
-
-```text
-ModuleNotFoundError: No module named 'core'
-```
+- [README.md](/home/users/oscar/Code-Repository-of-Guided-Streaming-Stochastic-Interpolant-Policy/README.md)
 
 ## Setup
 
+From the repository root:
+
 ```bash
-cd /home/users/meiyi/Guided_SI_RSS/Push-T-new
-conda activate streaming-flow-policy
+conda env create -f environment.yml
+conda activate guided-streaming-policy
+gsp check-env
 ```
 
-## Training Commands
+If you prefer a pure pip flow:
 
 ```bash
+pip install -e ".[pusht]"
+```
+
+## Run Tasks From The Repository Root
+
+```bash
+gsp list-tasks
+gsp run train-policy
+gsp run train-dp
+gsp run train-critic
+gsp run infer-static-ccg
+gsp run infer-dynamic-ccg
+```
+
+## Direct Module Usage
+
+If you want to run the original module commands directly:
+
+```bash
+cd Push-T
 python -m train.train_dp
 python -m train.train_policy
 python -m train.train_critic
-```
-
-## Static Inference Commands
-
-```bash
 python -m inference.static.inference_dp_gconva
 python -m inference.static.inference_fp_gconva
 python -m inference.static.inference_ccg
 python -m inference.static.inference_naive
 python -m inference.static.inference_steg
-
-```
-
-## Dynamic Inference Commands
-
-```bash
 python -m inference.dynamic.inference_ccg_dynamic
 python -m inference.dynamic.inference_dp_gconva_dynamic
 python -m inference.dynamic.inference_fp_gconva_dynamic
@@ -51,17 +55,16 @@ python -m inference.dynamic.inference_naive_dynamic
 python -m inference.dynamic.inference_steg_dynamic
 ```
 
-## Project Paths
-
-The scripts expect the following folders under the project root:
+## Required Asset Layout
 
 ```text
-data/
-checkpoints/
-outputs/
-core/
-train/
-inference/
+Push-T/data/
+Push-T/checkpoints/
+Push-T/outputs/
+Push-T/core/
+Push-T/train/
+Push-T/inference/
 ```
 
-Data is loaded from `data/`, checkpoints are loaded from `checkpoints/`, and generated results are written to `outputs/`.
+The dataset is read from `Push-T/data/`, checkpoints are read from
+`Push-T/checkpoints/`, and generated results are written to `Push-T/outputs/`.
