@@ -475,23 +475,23 @@ def run_batch_experiments_steg(start_seed=0, num_seeds=10,
     return df
 
 
-test_obstacles = [
-    [-0.3, -0.5], 
-    [0.2, -0.5], 
-    [-0.7, -0.2], 
-    [0.6, -0.2], 
-    [-0.7, 0.4],
-    [0.6, 0.4],
-    [-0.3, 0.8],
-    [0.2, 0.8]
-]
+if __name__ == "__main__":
+    test_obstacles = [
+        [-0.3, -0.5],
+        [0.2, -0.5],
+        [-0.7, -0.2],
+        [0.6, -0.2],
+        [-0.7, 0.4],
+        [0.6, 0.4],
+        [-0.3, 0.8],
+        [0.2, 0.8],
+    ]
 
+    df_steg_results = run_batch_experiments_steg(
+        start_seed=0,
+        num_seeds=50,
+        obstacles=test_obstacles,
+        save_gif=True,
+    )
 
-df_steg_results = run_batch_experiments_steg(
-    start_seed=0, 
-    num_seeds=50, 
-    obstacles=test_obstacles, 
-    save_gif=True 
-)
-
-print_latency_global()
+    print_latency_global()

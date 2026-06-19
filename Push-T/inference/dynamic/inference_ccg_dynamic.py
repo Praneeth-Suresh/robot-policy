@@ -386,6 +386,7 @@ def run_guided_inference_visualized(obstacle_mode=0, start_obs_pos_norm=None, ma
             with torch.enable_grad():
                 na_in = na.squeeze(1).detach().requires_grad_(True) 
                 val = critic_net(na_in, t, obs_tensor, o_test)
+                # Preserve the benchmark-compatible guidance calibration.
                 collision_prob = torch.sigmoid(val).detach()
                 k = 3
                 dynamic_scale = max_guidance_scale * torch.pow(collision_prob, k)
@@ -444,51 +445,52 @@ def run_guided_inference_visualized(obstacle_mode=0, start_obs_pos_norm=None, ma
     return imgs, metrics
 
 
-output_dir = PROJECT_ROOT / "outputs" / "ccg-p-ode-mode1-guidance=4"
-os.makedirs(output_dir, exist_ok=True)
+if __name__ == "__main__":
+    output_dir = PROJECT_ROOT / "outputs" / "ccg-p-ode-mode1-guidance=4"
+    os.makedirs(output_dir, exist_ok=True)
 
-base_seed = 500
-num_trials = 50 
-mode_to_test = 1 
+    base_seed = 500
+    num_trials = 50
+    mode_to_test = 1
 
-print(f"Starting Batch Experiment: Mode {mode_to_test}, Trials {num_trials}")
+    print(f"Starting Batch Experiment: Mode {mode_to_test}, Trials {num_trials}")
 
-success_count = 0
-collision_count = 0
-reward_list = []
+    success_count = 0
+    collision_count = 0
+    reward_list = []
 
-for i in range(num_trials):
-    current_seed = base_seed + i
-    
-    print(f"--- Trial {i+1}/{num_trials} (Seed: {current_seed}) ---")
-    
-    imgs, metrics = run_guided_inference_visualized(
-        obstacle_mode=mode_to_test, 
-        start_obs_pos_norm=[0.5, 0.5], 
-        max_guidance_scale=4.0,
-        seed=current_seed 
-    )
-    
-    print(f"Reward(max): {metrics['reward']:.3f} | Collision: {metrics['collision']} | "
-          f"Success(no collision & reward>0.85): {metrics['success']} | "
-          f"MinDist: {metrics['min_dist']:.2f} (thr={metrics['collision_threshold']:.2f})")
+    for i in range(num_trials):
+        current_seed = base_seed + i
 
-    reward_list.append(metrics["reward"])
-    if metrics["collision"]:
-        collision_count += 1
-    if metrics["success"]:
-        success_count += 1
+        print(f"--- Trial {i+1}/{num_trials} (Seed: {current_seed}) ---")
 
-    if i < 50:
-        save_name = f"trial_{i}_seed_{current_seed}_mode_{mode_to_test}.gif"
-        save_path = os.path.join(output_dir, save_name)
-        if len(imgs) > 0:
-            imageio.mimsave(save_path, imgs, fps=20, loop=0)
-            print(f"Saved GIF: {save_path}")
+        imgs, metrics = run_guided_inference_visualized(
+            obstacle_mode=mode_to_test,
+            start_obs_pos_norm=[0.5, 0.5],
+            max_guidance_scale=4.0,
+            seed=current_seed,
+        )
 
-print(f"\n========================================")
-print(f"Guided Collision Rate: {collision_count}/{num_trials} ({(collision_count/num_trials)*100:.1f}%)")
-print(f"Guided Success Rate (no collision & reward>0.85): {success_count}/{num_trials} ({(success_count/num_trials)*100:.1f}%)")
-avg_reward = (sum(reward_list) / len(reward_list)) if len(reward_list) > 0 else 0.0
-print(f"Guided Avg Reward(max): {avg_reward:.3f}")
-print(f"========================================")
+        print(f"Reward(max): {metrics['reward']:.3f} | Collision: {metrics['collision']} | "
+              f"Success(no collision & reward>0.85): {metrics['success']} | "
+              f"MinDist: {metrics['min_dist']:.2f} (thr={metrics['collision_threshold']:.2f})")
+
+        reward_list.append(metrics["reward"])
+        if metrics["collision"]:
+            collision_count += 1
+        if metrics["success"]:
+            success_count += 1
+
+        if i < 50:
+            save_name = f"trial_{i}_seed_{current_seed}_mode_{mode_to_test}.gif"
+            save_path = os.path.join(output_dir, save_name)
+            if len(imgs) > 0:
+                imageio.mimsave(save_path, imgs, fps=20, loop=0)
+                print(f"Saved GIF: {save_path}")
+
+    print(f"\n========================================")
+    print(f"Guided Collision Rate: {collision_count}/{num_trials} ({(collision_count/num_trials)*100:.1f}%)")
+    print(f"Guided Success Rate (no collision & reward>0.85): {success_count}/{num_trials} ({(success_count/num_trials)*100:.1f}%)")
+    avg_reward = (sum(reward_list) / len(reward_list)) if len(reward_list) > 0 else 0.0
+    print(f"Guided Avg Reward(max): {avg_reward:.3f}")
+    print(f"========================================")

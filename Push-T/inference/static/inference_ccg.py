@@ -235,6 +235,7 @@ def run_ccg_inference(obstacle_percentage=0.5, max_guidance_scale=1.0,
                         with torch.enable_grad():
                             na_in = na.squeeze(1).detach().requires_grad_(True) 
                             val = critic_net(na_in, t, obs_tensor, o_test)
+                            # Preserve the benchmark-compatible guidance calibration.
                             collision_prob = torch.sigmoid(val).detach()
                             k = 4
                             dynamic_scale = max_guidance_scale * torch.pow(collision_prob, k)
@@ -454,11 +455,11 @@ def run_batch_experiments(start_seed=240, num_seeds=10,
     return df
 
 
-df_results = run_batch_experiments(
-    start_seed=0, 
-    num_seeds=50, 
-    save_gif=True 
-)
+if __name__ == "__main__":
+    df_results = run_batch_experiments(
+        start_seed=0,
+        num_seeds=50,
+        save_gif=True,
+    )
 
-
-print_latency_global()
+    print_latency_global()

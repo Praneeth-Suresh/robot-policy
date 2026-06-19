@@ -23,38 +23,42 @@ action_dim = 2
 pred_horizon = 16
 action_horizon = 8
 
-dataset_path = PROJECT_ROOT / "data" / "pusht_cchi_v7_replay.zarr.zip"
-ckpt_path_si = PROJECT_ROOT / "checkpoints" / "pusht_state_1000ep_si.ckpt"
 
-dataset = PushTDataset(
-    dataset_path=str(dataset_path),
-    pred_horizon=pred_horizon,
-    obs_horizon=obs_horizon,
-    action_horizon=action_horizon,
-)
+def load_training_inputs():
+    dataset_path = PROJECT_ROOT / "data" / "pusht_cchi_v7_replay.zarr.zip"
+    ckpt_path_si = PROJECT_ROOT / "checkpoints" / "pusht_state_1000ep_si.ckpt"
 
-dataloader = torch.utils.data.DataLoader(
-    dataset,
-    batch_size=256,
-    num_workers=1,
-    shuffle=True,
-    pin_memory=True,
-    persistent_workers=True,
-)
+    dataset = PushTDataset(
+        dataset_path=str(dataset_path),
+        pred_horizon=pred_horizon,
+        obs_horizon=obs_horizon,
+        action_horizon=action_horizon,
+    )
 
-si_velocity_net = ConditionalUnet1D(
-    input_dim=action_dim,
-    global_cond_dim=obs_dim * obs_horizon,
-    updownsample_type="Linear",
-    sin_embedding_scale=100,
-).to(device)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=256,
+        num_workers=1,
+        shuffle=True,
+        pin_memory=True,
+        persistent_workers=True,
+    )
 
-if os.path.isfile(ckpt_path_si):
-    checkpoint = torch.load(ckpt_path_si, map_location=device)
-    si_velocity_net.load_state_dict(checkpoint["velocity_net"])
-    si_velocity_net.eval()
-else:
-    raise FileNotFoundError(f"Checkpoint not found: {ckpt_path_si}")
+    si_velocity_net = ConditionalUnet1D(
+        input_dim=action_dim,
+        global_cond_dim=obs_dim * obs_horizon,
+        updownsample_type="Linear",
+        sin_embedding_scale=100,
+    ).to(device)
+
+    if os.path.isfile(ckpt_path_si):
+        checkpoint = torch.load(ckpt_path_si, map_location=device)
+        si_velocity_net.load_state_dict(checkpoint["velocity_net"])
+        si_velocity_net.eval()
+    else:
+        raise FileNotFoundError(f"Checkpoint not found: {ckpt_path_si}")
+
+    return dataloader, si_velocity_net
 
 
 def train_robust_critic(dataloader, si_velocity_net, action_dim, obs_dim, obs_horizon, 
@@ -174,7 +178,8 @@ def train_robust_critic(dataloader, si_velocity_net, action_dim, obs_dim, obs_ho
     return critic
 
 
-if __name__ == "__main__":
+def main():
+    dataloader, si_velocity_net = load_training_inputs()
     trained_critic = train_robust_critic(
         dataloader=dataloader,
         si_velocity_net=si_velocity_net,
@@ -186,3 +191,7 @@ if __name__ == "__main__":
         sample_t_max=0.8,
         save_path=PROJECT_ROOT / "checkpoints" / "CCG_V6.pth",
     )
+
+
+if __name__ == "__main__":
+    main()

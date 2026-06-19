@@ -142,6 +142,7 @@ def main():
             tglobal.set_postfix(loss=np.mean(epoch_loss))
 
     ckpt_path_si = PROJECT_ROOT / "checkpoints" / "pusht_state_1000ep_si.ckpt"
+    # Preserve the original checkpoint serialization order for reproducibility.
     torch.save({
         'velocity_net': si_velocity_net.state_dict(),
         'denoiser_net': si_denoiser_net.state_dict()

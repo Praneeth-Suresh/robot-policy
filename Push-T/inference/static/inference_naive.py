@@ -429,10 +429,11 @@ def run_batch_experiments(start_seed=240, num_seeds=10,
     return df
 
 
-df_results = run_batch_experiments(
-    start_seed=0, 
-    num_seeds=50, 
-    save_gif=True 
-)
+if __name__ == "__main__":
+    df_results = run_batch_experiments(
+        start_seed=0,
+        num_seeds=50,
+        save_gif=True,
+    )
 
-print_latency_global()
+    print_latency_global()

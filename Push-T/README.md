@@ -5,7 +5,7 @@ this repository.
 
 The recommended entrypoint is the repository root:
 
-- [README.md](/home/users/oscar/Code-Repository-of-Guided-Streaming-Stochastic-Interpolant-Policy/README.md)
+- [README.md](../README.md)
 
 ## Setup
 
@@ -22,6 +22,10 @@ If you prefer a pure pip flow:
 ```bash
 pip install -e ".[pusht]"
 ```
+
+These are the two supported installation paths for the public repository.
+For benchmark compatibility details, see
+[Reproducibility Notes](../docs/reproducibility.md).
 
 ## Run Tasks From The Repository Root
 

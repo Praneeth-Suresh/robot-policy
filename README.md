@@ -10,7 +10,17 @@ The codebase includes:
 - extracted reusable model and sequence components
 - the original `Push-T` training and inference scripts used by the project
 
+This is currently a source-checkout release: clone the repository, install it
+editable, and run the benchmark tasks from that checkout. The benchmark scripts
+are kept numerically aligned with the reported results; see
+[Reproducibility Notes](docs/reproducibility.md).
+
 ## Installation
+
+Two installation paths are supported:
+
+- Conda environment
+- pip extras
 
 ### Recommended: Conda
 
@@ -19,7 +29,7 @@ conda env create -f environment.yml
 conda activate guided-streaming-policy
 ```
 
-### Alternative: pip
+### Alternative: pip extras
 
 ```bash
 python -m venv .venv
@@ -71,6 +81,11 @@ Push-T/outputs/
 Use `gsp check-env` at any time to verify whether the dataset, checkpoints, and
 Python dependencies are all present.
 
+The dataset and checkpoints are not committed to git. Before running benchmark
+tasks, place the released artifacts at the paths above. If a checkpoint name
+looks old or awkward, keep it unchanged unless you also update the matching
+script and reproduction notes.
+
 ## Repository Layout
 
 ```text
@@ -93,6 +108,13 @@ python -m train.train_dp
 python -m train.train_critic
 ```
 
+## Development Checks
+
+```bash
+python -m unittest discover -v
+python -m compileall -q guided_streaming_policy Push-T tests
+```
+
 ## License
 
-Released under the MIT license. See [LICENSE](/home/users/oscar/Code-Repository-of-Guided-Streaming-Stochastic-Interpolant-Policy/LICENSE).
+Released under the MIT license. See [LICENSE](LICENSE).
