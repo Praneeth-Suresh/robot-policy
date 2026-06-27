@@ -8,7 +8,7 @@ from tqdm.auto import tqdm
 
 from core.config import *  # noqa: F401,F403  (device / obs_horizon / action_horizon / pred_horizon, etc.)
 from core.config import CKPT_PATH_SI
-from core.pusht_env import get_env
+from core.robotic_mimic_env import get_env
 _env = get_env()
 wrapper       = _env.wrapper
 CONTROL_DELTA = _env.control_delta

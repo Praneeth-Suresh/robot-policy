@@ -12,7 +12,7 @@ from tqdm.auto import tqdm
 from core.config import *  # noqa: F401,F403  (device / obs_horizon / action_horizon / pred_horizon / RESULTS_BASE_DIR, etc.)
 
 # Lazy singleton: zero side effects on import; env built on first access
-from core.pusht_env import get_env
+from core.robotic_mimic_env import get_env
 _env = get_env()
 wrapper       = _env.wrapper
 dataset_path  = _env.dataset_path
