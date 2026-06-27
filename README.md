@@ -146,6 +146,16 @@ Robotic_mimic/checkpoint/
 Use `gsp check-env` to verify the datasets, checkpoints, and Python
 dependencies for both benchmarks.
 
+## Pretrained Checkpoints
+
+Datasets and checkpoints are not committed to git. Released checkpoints for
+both `Push-T` and `Robotic_mimic` are available on Google Drive:
+
+https://drive.google.com/drive/folders/18xWIlqNR2cQ2M6FI1H13l6uUxXMkDmC3?usp=drive_link
+
+Download them and place each benchmark's files at the paths shown above
+(`Push-T/checkpoints/` and `Robotic_mimic/checkpoint/`).
+
 ## Repository Layout
 
 ```text
