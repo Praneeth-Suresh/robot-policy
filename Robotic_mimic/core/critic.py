@@ -36,7 +36,7 @@ class CollisionPredictionCritic(nn.Module):
         self.eef_pos_start = eef_pos_start
         self.use_obs_eef_pos = use_obs_eef_pos
         
-        # 1. Context Encoder: 处理 obs_dim 维的观测序列（不同任务 obs_dim 可能不同）
+        # 1. Context Encoder: obs_dim-dimensional observation sequence (varies by task)
         self.context_encoder = nn.Sequential(
             nn.Conv1d(obs_dim, 256, kernel_size=3, padding=1),
             nn.Mish(),
@@ -47,7 +47,7 @@ class CollisionPredictionCritic(nn.Module):
         )
         
         # 2. Geometric Encoder
-        # 输入维度计算:
+        # Input dimension breakdown:
         # a (10) + t (1) + obs_pos (3) + rel_vec (3) + dist (1) + alignment (1) = 19
         self.geo_input_dim = action_dim + 1 + 3 + 3 + 1 + 1 
         
@@ -70,19 +70,19 @@ class CollisionPredictionCritic(nn.Module):
         """
         a: (B, 10) - Current Action (normalized)
         t: (B, 1) or (B,)
-        obs_pos: (B, 3) - 虚拟障碍物的 3D 位置 (normalized)
+        obs_pos: (B, 3) - virtual obstacle 3D position (normalized)
         global_cond: (B, obs_dim * obs_horizon) - flattened observation
         """
         B = a.shape[0]
         if t.dim() == 1: t = t.unsqueeze(-1)
         
-        # 1. 上下文编码
+        # 1. Context encoding
         seq_len = global_cond.shape[1] // self.obs_dim
         obs_seq = global_cond.view(B, seq_len, self.obs_dim)  # (B, T, obs_dim)
         ctx_feat = self.context_encoder(obs_seq.transpose(1, 2))
 
-        # 2. 几何特征构造 (只关注前3维 XYZ 位置)
-        # 跨任务/跨控制模式的关键：优先使用 obs 里的 eef_pos（归一化后），避免把 a[:3] 错当“当前位置”
+        # 2. Geometric features (XYZ position only, first 3 dims)
+        # Cross-task/control: prefer eef_pos from obs (normalized); avoid treating a[:3] as current position
         if self.use_obs_eef_pos and (self.eef_pos_start is not None):
             curr_pos = obs_seq[:, -1, self.eef_pos_start : self.eef_pos_start + 3]  # (B, 3)
         else:
@@ -91,17 +91,17 @@ class CollisionPredictionCritic(nn.Module):
         rel_vec = obs_pos - curr_pos # (B, 3)
         dist = torch.norm(rel_vec, dim=-1, keepdim=True) # (B, 1)
         
-        # 计算对齐度 (Alignment)
-        # 归一化动作向量 (只看位置移动方向)
+        # Alignment score
+        # Normalized action vector (position motion direction only)
         pos_vel_norm = curr_pos / (torch.norm(curr_pos, dim=-1, keepdim=True) + 1e-7)
         obs_dir = rel_vec / (dist + 1e-7)
         alignment = (pos_vel_norm * obs_dir).sum(dim=-1, keepdim=True)
         
-        # 拼接所有几何特征
+        # Concatenate all geometric features
         geo_in = torch.cat([a, t, obs_pos, rel_vec, dist, alignment], dim=-1)
         geo_feat = self.geo_encoder(geo_in)
 
-        # 3. 融合与残差推理
+        # 3. Fusion and residual inference
         x = torch.cat([ctx_feat, geo_feat], dim=-1)
         x = self.fusion(x)
         for block in self.blocks:
@@ -109,26 +109,26 @@ class CollisionPredictionCritic(nn.Module):
         return self.head(x)
 
 # =========================================================
-# 2. 风险评估逻辑 (Labeling Function - 3D Version)
+# 2. Risk assessment logic (Labeling Function - 3D Version)
 # =========================================================
 
 def compute_hybrid_risk_3d(trajectory, obs_pos, r_obs=0.07, sharpness=100.0):
     """
-    trajectory: (Steps, Total_B, 10) - 预测的动作轨迹
-    obs_pos: (Total_B, 3) - 虚拟障碍物位置
+    trajectory: (Steps, Total_B, 10) - predicted action trajectory
+    obs_pos: (Total_B, 3) - virtual obstacle position
     """
-    # 只取 XYZ 位置 (前3维)
+    # XYZ position only (first 3 dims)
     traj_pos = trajectory[..., :3] # (Steps, B, 3)
     
-    # 1. 碰撞概率 (Prob Hit) - 轨迹上任意一点与障碍物的最小距离
+    # 1. Collision probability (Prob Hit) - min distance from trajectory to obstacle
     # dists: (Steps, B)
     dists = torch.norm(traj_pos - obs_pos.unsqueeze(0), p=2, dim=-1)
     min_dist = torch.min(dists, dim=0)[0] # (B,)
     
-    # r_obs 是碰撞半径，在归一化空间中 0.05 大约对应实际空间的 2.5cm-5cm
+    # r_obs is collision radius; 0.05 in normalized space ≈ 2.5–5 cm in physical space
     prob_hit = torch.sigmoid(sharpness * (r_obs - min_dist))
     
-    # 2. 瞄准概率 (Prob Aim) - 初始移动方向是否指向障碍物
+    # 2. Aim probability (Prob Aim) - whether initial motion points toward obstacle
     start_pos = traj_pos[0] # (B, 3)
     future_idx = min(5, traj_pos.shape[0]-1)
     future_pos = traj_pos[future_idx] 
@@ -143,7 +143,7 @@ def compute_hybrid_risk_3d(trajectory, obs_pos, r_obs=0.07, sharpness=100.0):
     
     alignment = torch.relu((dir_move * dir_to_obs).sum(dim=-1))
     
-    # 距离衰减因子: 如果离得远，即使对准了也不算太危险
+    # Distance decay: far away -> less dangerous even if aligned
     dist_factor = torch.exp(-(dist_to_obs**2) / (2 * 0.5**2))
     
     prob_aim = (alignment ** 2) * dist_factor

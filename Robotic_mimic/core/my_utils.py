@@ -7,10 +7,10 @@ import math
 from tqdm.auto import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-# --- 模块化补全：critic 的 .pth 统一放在 checkpoint/（_MODEL_ROOT 来自 core.config）---
+# --- Modular: critic .pth files live under checkpoint/ (_MODEL_ROOT from core.config) ---
 from core.config import _MODEL_ROOT
 
-# 检测设备
+# Detect device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -32,7 +32,7 @@ def _get_obs_key_dims(wrapper) -> Dict[str, int]:
 
 def _get_eef_pos_start(wrapper, target_key: str = "robot0_eef_pos") -> int:
     if target_key not in wrapper.obs_keys:
-        raise ValueError(f"wrapper.obs_keys 里没有 {target_key}，当前 keys={wrapper.obs_keys}")
+        raise ValueError(f"{target_key} not found in wrapper.obs_keys; current keys={wrapper.obs_keys}")
     key_dims = _get_obs_key_dims(wrapper)
     idx = wrapper.obs_keys.index(target_key)
     return int(sum(key_dims[k] for k in wrapper.obs_keys[:idx]))
@@ -58,27 +58,27 @@ def _init_na_from_obs(
     device: torch.device,
 ) -> torch.Tensor:
     """
-    初始化 latent action na: (1, 1, action_dim)
-    - absolute: 用当前 eef_pos 作为初始 pos
-    - delta: 用 0 增量作为初始 pos
-    - 旋转/夹爪使用数值稳定初始化（避免 6D 退化导致 NaN）
+    Initialize latent action na: (1, 1, action_dim)
+    - absolute: use current eef_pos as initial position
+    - delta: use zero increment as initial position
+    - rotation/gripper use numerically stable init (avoid 6D degeneracy -> NaN)
     """
     action_dim_local = int(dataset[0]["action"].shape[-1])
     na = torch.zeros((1, 1, action_dim_local), device=device, dtype=torch.float32)
 
     is_delta = bool(control_delta) if control_delta is not None else True
-    curr_eef_pos = _get_eef_pos_from_obs(obs, eef_pos_start)  # 物理坐标
+    curr_eef_pos = _get_eef_pos_from_obs(obs, eef_pos_start)  # physical coordinates
     raw_pos = np.zeros(3, dtype=np.float32) if is_delta else curr_eef_pos
 
     pos_min = dataset.action_normalizer.min_val[:3].astype(np.float32)
     pos_max = dataset.action_normalizer.max_val[:3].astype(np.float32)
     na[0, 0, :3] = torch.from_numpy(_raw_to_norm(raw_pos, pos_min, pos_max)).to(device)
 
-    # gripper: 默认第 9 维是夹爪；用 “张开”(-1) 做稳定起点
+    # gripper: dim 9 by default; use "open" (-1) as stable start
     if action_dim_local >= 10:
         na[0, 0, 9] = -1.0
 
-    # 6D rotation: 用单位旋转的稳定 6D 表示，并映射到归一化空间
+    # 6D rotation: stable identity 6D representation mapped to normalized space
     if action_dim_local >= 9:
         rot6d_raw = np.array([1, 0, 0, 0, 1, 0], dtype=np.float32)
         rot_min = dataset.action_normalizer.min_val[3:9].astype(np.float32)
@@ -91,9 +91,9 @@ def _init_na_from_obs(
 
 def _r_obs_norm_from_phys(dataset, r_phys: float) -> float:
     """
-    物理空间半径 r_phys（米）粗略换算到归一化空间半径 r_norm。
+    Roughly convert physical radius r_phys (meters) to normalized radius r_norm.
     x_norm = (x-min)/(max-min)*2-1 => dx_norm ≈ 2*dx_phys/(max-min)
-    用 xyz 的平均尺度做近似（足够用于风险打标阈值）。
+    Approximate using mean xyz scale (sufficient for risk-label thresholds).
     """
     pos_min = dataset.action_normalizer.min_val[:3].astype(np.float32)
     pos_max = dataset.action_normalizer.max_val[:3].astype(np.float32)
@@ -117,7 +117,7 @@ def _task_cfg(task_name: str) -> Dict[str, float]:
         cfg.update(collision_threshold_phys=0.02, warning_dist_phys=0.05)
 
     cfg["task_name"] = task_name
-    # critic 的 .pth 也统一放在 checkpoint/ 目录（load/save 一致）
+    # critic .pth also under checkpoint/ (consistent load/save paths)
     _critic_name = f"Robust_critic_{task_name}.pth" if task_name != "unknown" else "Robust_critic.pth"
     cfg["critic_save_path"] = os.path.join(_MODEL_ROOT, _critic_name)
     cfg["critic_checkpoint_path"] = cfg["critic_save_path"].replace(".pth", "_latest_checkpoint.pth")

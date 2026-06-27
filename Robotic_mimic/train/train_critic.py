@@ -8,7 +8,7 @@ from tqdm.auto import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from typing import Optional
 
-from core.config import *  # noqa: F401,F403  (device / obs_horizon / pred_horizon 等)
+from core.config import *  # noqa: F401,F403  (device / obs_horizon / pred_horizon, etc.)
 from core.pusht_env import get_env
 _env = get_env()
 wrapper      = _env.wrapper
@@ -44,7 +44,7 @@ def train_robust_critic(
     checkpoint_path = save_path.replace(".pth", "_latest_checkpoint.pth")
     best_model_path = save_path.replace(".pth", "_best.pth")
     
-    # 初始化 Critic（跨任务：支持不同 obs_dim；几何特征默认取 obs 里的 eef_pos）
+    # Initialize Critic (cross-task obs_dim; geometric features from eef_pos in obs by default)
     critic = CollisionPredictionCritic(
         action_dim, obs_dim, obs_horizon,
         hidden_dim=1024, depth=6,
@@ -57,10 +57,10 @@ def train_robust_critic(
     
     start_epoch = 0
     best_loss = float('inf')
-    # 与推理侧 dt_val 保持一致（更稳，也便于跨任务复用）
+    # Match inference-side dt_val (more stable, reusable across tasks)
     dt = 1.0 / max(1, (pred_horizon - obs_horizon))
 
-    # 加载断点
+    # Load checkpoint
     if os.path.exists(checkpoint_path):
         print(f"Resuming from checkpoint: {checkpoint_path}")
         ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
@@ -71,10 +71,10 @@ def train_robust_critic(
         best_loss = ckpt.get('best_loss', float('inf'))
         print(f"Restarting at Epoch {start_epoch+1}")
 
-    # 定义 Drift 函数 (使用已经训练好的 si_velocity_net)
+    # Drift function using pretrained si_velocity_net
     def get_drift(a, t, cond):
         t_in = torch.clamp(t, 0.02, 0.98).view(-1)
-        # 输入需要 unsqueeze 适配 UNet 接口: (B, 1, 10)
+        # Unsqueeze for UNet interface: (B, 1, 10)
         v = si_velocity_net(sample=a.unsqueeze(1), timestep=t_in, global_cond=cond).squeeze(1)
         return v
 
@@ -91,24 +91,24 @@ def train_robust_critic(
                 global_cond = obs.flatten(start_dim=1)
                 
                 # ==========================================
-                # A. 动态生成虚拟障碍物 (Target Sampling)
+                # A. Dynamic virtual obstacle generation (target sampling)
                 # ==========================================
                 with torch.no_grad():
-                    # 随机选择一个起始时间 t
+                    # Random start time t
                     t_start = torch.rand(B, 1, device=device) * sample_t_max
                     
-                    # 根据 t 映射到未来的某个时间步索引
-                    # obs_horizon-1 是当前的最后一帧，我们往后看
-                    # 用 pred_horizon 自适配，不再写死 16
+                    # Map t to a future time-step index
+                    # obs_horizon-1 is the current last frame; look ahead
+                    # Use pred_horizon adaptively (no hard-coded 16)
                     future_step = (t_start * max(1, (pred_horizon - 1))).long()
                     target_idx = torch.clamp(obs_horizon - 1 + future_step, max=gt_action.shape[1]-1)
                     
-                    # 取出该时间步的 GT Action (B, 1, 10) -> (B, 10)
-                    # gather 需要 index 维度匹配
+                    # GT action at that step (B, 1, 10) -> (B, 10)
+                    # gather requires matching index dimensions
                     idx_expanded = target_idx.unsqueeze(-1).expand(-1, -1, action_dim)
                     a_base = torch.gather(gt_action, 1, idx_expanded).squeeze(1)
 
-                    # 为了获得更鲁棒的障碍物位置，我们可以从当前点 rollout 一小段
+                    # Roll out a short segment for more robust obstacle placement
                     curr_a, curr_t, path = a_base.clone(), t_start.clone().view(-1), [a_base.clone()]
                     warm_roll_steps = min(5, max(1, pred_horizon - 1))
                     for _ in range(warm_roll_steps):
@@ -119,11 +119,11 @@ def train_robust_critic(
                     
                     path_tensor = torch.stack(path, dim=0) # (Steps, B, 10)
                     
-                    # 随机从 rollout 的路径中选一个点作为障碍物中心
+                    # Random point on rollout path as obstacle center
                     rand_step = torch.randint(0, len(path), (B,))
                     base_obs_full = path_tensor[rand_step, torch.arange(B)] # (B, 10)
                     
-                    # [关键] 障碍物只定义为 XYZ (前3维)，并加入噪声
+                    # Obstacle defined as XYZ only (first 3 dims), with noise
                     base_obs_pos = base_obs_full[:, :3]
                     final_obs_pos = torch.clamp(
                         base_obs_pos + torch.randn_like(base_obs_pos) * float(obstacle_noise_std_norm),
@@ -131,41 +131,41 @@ def train_robust_critic(
                     ) # (B, 3)
 
                 # ==========================================
-                # B. 构造多样化动作 (Action Perturbation)
+                # B. Diverse action perturbations
                 # ==========================================
                 n_pert = 6
                 
-                # 在 10D 空间中，我们使用高斯噪声来产生多样性
+                # Gaussian noise in 10D space for diversity
                 # a_base: (B, 10)
                 noise_small = torch.randn_like(a_base) * 0.1
                 noise_med = torch.randn_like(a_base) * 0.3
                 noise_large = torch.randn_like(a_base) * 0.6
                 
-                # 也可以尝试只扰动位置 (前3维)
+                # Position-only perturbation (first 3 dims)
                 noise_pos_only = torch.zeros_like(a_base)
                 noise_pos_only[:, :3] = torch.randn(B, 3, device=device) * 0.4
                 
                 a_list = [
-                    a_base,                  # 原始 GT
-                    a_base + noise_small,    # 小扰动
-                    a_base + noise_med,      # 中扰动
-                    a_base + noise_large,    # 大扰动
-                    a_base + noise_pos_only, # 仅位置扰动
-                    a_base - noise_pos_only  # 反向位置扰动
+                    a_base,                  # original GT
+                    a_base + noise_small,    # small perturbation
+                    a_base + noise_med,      # medium perturbation
+                    a_base + noise_large,    # large perturbation
+                    a_base + noise_pos_only, # position-only perturbation
+                    a_base - noise_pos_only  # reverse position perturbation
                 ]
                 
                 # (B * n_pert, 10)
                 a_exp = torch.stack(a_list, dim=1).view(-1, action_dim)
                 
-                # 扩展其他条件
+                # Expand conditioning tensors
                 cond_exp = global_cond.repeat_interleave(n_pert, dim=0)
                 t_exp = t_start.repeat_interleave(n_pert, dim=0)
                 obs_exp = final_obs_pos.repeat_interleave(n_pert, dim=0) # (B*n_pert, 3)
 
                 # ==========================================
-                # C. Rollout 采样风险标签 (K Samples per action)
+                # C. Rollout risk labels (K samples per action)
                 # ==========================================
-                # 对每个 perturbed action，再采样 K 条轨迹 (考虑 SDE 的随机性)
+                # For each perturbed action, sample K trajectories (SDE stochasticity)
                 curr_a_k = a_exp.repeat_interleave(K_samples, dim=0)
                 curr_t_k = t_exp.repeat_interleave(K_samples, dim=0).view(-1)
                 curr_cond_k = cond_exp.repeat_interleave(K_samples, dim=0)
@@ -175,29 +175,29 @@ def train_robust_critic(
                     rollout_steps = min(12, max(1, pred_horizon - 1))
                     for _ in range(rollout_steps): # Rollout to estimate collision risk
                         v = get_drift(curr_a_k, curr_t_k, curr_cond_k)
-                        # SDE 噪声项: 0.05 * sqrt(dt)
+                        # SDE noise term: 0.05 * sqrt(dt)
                         noise = torch.randn_like(curr_a_k)
                         curr_a_k += (v * dt + 0.05 * math.sqrt(dt) * noise) * (curr_t_k < 0.99).float().unsqueeze(1)
                         curr_t_k += dt
                         traj.append(curr_a_k.clone())
                 
-                # 计算 Risk Label
+                # Compute risk label
                 # traj_stack: (Steps, Total_B, 10)
                 traj_stack = torch.stack(traj, dim=0)
                 
-                # 扩展 obs_exp 以匹配 K_samples
+                # Expand obs_exp to match K_samples
                 obs_targets = obs_exp.repeat_interleave(K_samples, dim=0)
                 
-                # 使用 3D 风险函数
+                # 3D hybrid risk function
                 target_risk = compute_hybrid_risk_3d(traj_stack, obs_targets, r_obs=float(r_obs_norm))
                 
-                # 聚合 K 条轨迹的风险 (取平均) -> (B * n_pert, 1)
+                # Aggregate risk over K trajectories (mean) -> (B * n_pert, 1)
                 target_risk = target_risk.view(B * n_pert, K_samples).mean(dim=1, keepdim=True)
 
                 # ==========================================
-                # D. 训练步
+                # D. Training step
                 # ==========================================
-                # Critic 输入: a(10), t(1), obs(3), cond(flat)
+                # Critic input: a(10), t(1), obs(3), cond(flat)
                 pred_risk = critic(a_exp, t_exp, obs_exp, cond_exp)
                 
                 loss = loss_fn(pred_risk, target_risk)
@@ -210,12 +210,12 @@ def train_robust_critic(
                 epoch_losses.append(loss.item())
                 pbar.set_postfix(loss=f"{loss.item():.5f}")
 
-        # E. 存储逻辑
+        # E. Checkpoint logic
         scheduler.step()
         avg_loss = np.mean(epoch_losses)
         print(f"Epoch {epoch+1} | Loss: {avg_loss:.6f} | LR: {scheduler.get_last_lr()[0]:.7f}")
 
-        # 保存断点
+        # Save checkpoint
         ckpt = {
             'epoch': epoch, 'model_state_dict': critic.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
@@ -244,7 +244,7 @@ _ccg_r_obs_norm = _r_obs_norm_from_phys(dataset, float(_ccg_cfg["collision_thres
 
 trained_critic = train_robust_critic(
     dataloader,
-    si_velocity_net, # 传入之前训练好的 policy
+    si_velocity_net, # pretrained policy from prior training
     action_dim=_ccg_action_dim,
     obs_dim=_ccg_obs_dim,
     obs_horizon=obs_horizon,

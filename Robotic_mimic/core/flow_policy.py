@@ -2,7 +2,7 @@ import torch
 from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 
-from core.config import *  # noqa: F401,F403  (device / action_dim / obs_horizon / pred_horizon 等)
+from core.config import *  # noqa: F401,F403  (device / action_dim / obs_horizon / pred_horizon, etc.)
 from core.models import ConditionalUnet1D
 from core.dataset import dataset, dataloader
 
@@ -69,14 +69,14 @@ def d_gamma_dt_si(t):
 
 
 def build_si_policy(num_epochs_si: int = 1200, lr: float = 1e-4):
-    # 动态获取 obs_dim：dataset[0] 返回 {'obs': Tensor, 'action': Tensor}，
-    # shape 是 (obs_horizon, dim)，取 [-1] 得到拼接后的观测维度（换任务自适配）。
+    # Dynamically infer obs_dim: dataset[0] returns {'obs': Tensor, 'action': Tensor},
+    # shape (obs_horizon, dim); [-1] gives concatenated observation dim (task-adaptive).
     obs_dim = dataset[0]['obs'].shape[-1]
-    print(f"✅ 自动检测到的 obs_dim: {obs_dim}")  # 期望是 23
+    print(f"✅ Auto-detected obs_dim: {obs_dim}")  # expected: 23
 
-    # 两个网络：
-    # 1. si_velocity_net: 预测确定性速度场 (v)
-    # 2. si_denoiser_net: 预测噪声场 (eta/score)
+    # Two networks:
+    # 1. si_velocity_net: predicts deterministic velocity field (v)
+    # 2. si_denoiser_net: predicts noise field (eta/score)
     si_velocity_net = ConditionalUnet1D(
         input_dim=action_dim,
         global_cond_dim=obs_dim * obs_horizon,
@@ -93,7 +93,7 @@ def build_si_policy(num_epochs_si: int = 1200, lr: float = 1e-4):
 
     print("Models initialized for Streaming SI Policy.")
 
-    # 优化器：一个 AdamW 同时管两个网络
+    # Optimizer: one AdamW for both networks
     optimizer_si = torch.optim.AdamW([
         {'params': si_velocity_net.parameters()},
         {'params': si_denoiser_net.parameters()}

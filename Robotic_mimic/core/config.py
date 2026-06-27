@@ -37,7 +37,7 @@ _TASK_REGISTRY = {
                  "N_ensemble": 32, "update_interval": 1, "K_horizon": 4},
     },
 }
-assert TASK in _TASK_REGISTRY, f"未知 TASK={TASK!r}，可选: {list(_TASK_REGISTRY)}"
+assert TASK in _TASK_REGISTRY, f"Unknown TASK={TASK!r}; options: {list(_TASK_REGISTRY)}"
 _TASK_HP = _TASK_REGISTRY[TASK]
 
 DATASET_PATH = os.path.join(_DATASET_ROOT, TASK, "ph", "low_dim_abs.hdf5")
@@ -57,9 +57,9 @@ obs_keys = [
     "robot0_eef_quat",
     "robot0_gripper_qpos",
 ]
-pred_horizon = 16     # 预测未来 16 步
-obs_horizon = 2       # 看过去 2 步
-action_horizon = 8    # 每个 chunk 执行 8 步
+pred_horizon = 16     # predict 16 future steps
+obs_horizon = 2       # observe past 2 steps
+action_horizon = 8    # execute 8 steps per chunk
 action_dim = 10       # 3 pos + 6 rot(6d) + 1 gripper
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

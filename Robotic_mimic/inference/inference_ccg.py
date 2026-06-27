@@ -9,7 +9,7 @@ import math
 import imageio
 from tqdm.auto import tqdm
 
-from core.config import *  # noqa: F401,F403  (device / obs_horizon / action_horizon / pred_horizon / GUIDANCE_SCALE / RESULTS_BASE_DIR 等)
+from core.config import *  # noqa: F401,F403  (device / obs_horizon / action_horizon / pred_horizon / GUIDANCE_SCALE / RESULTS_BASE_DIR, etc.)
 from core.pusht_env import get_env
 _env = get_env()
 wrapper        = _env.wrapper
@@ -26,15 +26,15 @@ from core.my_utils import (
     _r_obs_norm_from_phys,
     _init_na_from_obs,
 )
-# 复用 inference_si 加载好的预训练 SI 模型（import 时只加载 ckpt，不会触发 SI 推理）
+# Reuse pretrained SI models loaded by inference_si (import loads ckpt only, no SI inference)
 from inference.inference_si import ema_si_velocity_net, ema_si_denoiser_net
 
 # =========================================================
-# 假设前置依赖已定义 (get_drift, world_to_pixel_mujoco 等)
+# Assumes upstream deps defined (get_drift, world_to_pixel_mujoco, etc.)
 # =========================================================
 def get_drift(x, t, global_cond, sigma_infer, eps=1e-6):
     """
-    计算修正后的漂移项 b(x, t) = v + score_correction
+    Compute corrected drift b(x, t) = v + score_correction
     x: (B, 1, 10)
     """
     if t.ndim == 0: t = t.unsqueeze(0)
@@ -42,15 +42,15 @@ def get_drift(x, t, global_cond, sigma_infer, eps=1e-6):
     v_pred = ema_si_velocity_net(sample=x, timestep=t, global_cond=global_cond)
     eta_pred = ema_si_denoiser_net(sample=x, timestep=t, global_cond=global_cond)
     
-    # 统一维度处理: 假设网络输出可能是 (B, 10) 或 (B, 1, 10)
+    # Unified shape handling: network output may be (B, 10) or (B, 1, 10)
     if v_pred.ndim == 2: v_pred = v_pred.unsqueeze(1)
     if eta_pred.ndim == 2: eta_pred = eta_pred.unsqueeze(1)
 
-    # 获取 gamma 及其导数
+    # gamma and its derivative
     gamma = gamma_t_si(t).view(-1, 1, 1).to(device)
     gamma_dot = d_gamma_dt_si(t).view(-1, 1, 1).to(device)
     
-    # 计算 score 和 漂移系数
+    # Score and drift coefficient
     s_pred = -eta_pred / (gamma + eps)
     score_coeff = 0.5 * (sigma_infer ** 2) - (gamma * gamma_dot)
     
@@ -81,12 +81,12 @@ def run_ccg_phys_vis_inference(
     guidance_scale=20.0,     
     power_k=3.0,             
     activation_dist=0.6,
-    seed=0,                  # 支持传入随机种子
-    collect_trajectory=False, # 是否收集轨迹 (用于 Base Run)
-    render=True,              # 是否渲染（生成 imgs，用于可视化/GIF）
+    seed=0,                  # optional random seed
+    collect_trajectory=False, # collect trajectory (for base run)
+    render=True,              # render frames (visualization / GIF)
 ):
     # =========================================================
-    # [关键修改 1] 全面固定随机种子 (RNG Seeding)
+    # [Key change 1] Fix all random seeds (RNG seeding)
     # =========================================================
     random.seed(seed)
     np.random.seed(seed)
@@ -107,7 +107,7 @@ def run_ccg_phys_vis_inference(
     if "_ccg_eef_pos_start" not in globals():
         _ccg_eef_pos_start = _get_eef_pos_start(wrapper, "robot0_eef_pos")
 
-    # --- 1. 初始化模型 ---
+    # --- 1. Initialize models ---
     critic_net = CollisionPredictionCritic(
         action_dim=_ccg_action_dim,
         obs_dim=_ccg_obs_dim,
@@ -122,41 +122,41 @@ def run_ccg_phys_vis_inference(
     critic_net.load_state_dict(state_dict)
     critic_net.eval()
     
-    # --- 2. 准备障碍物数据 ---
+    # --- 2. Prepare obstacle data ---
     if obstacle_pos_phys is None:
         obstacle_pos_phys = np.array([10.0, 10.0, 10.0]) # Dummy position
 
-    # A. 归一化坐标
-    # 注意：这里默认假设是 absolute 控制（动作 pos 的 min/max 对应物理工作空间）
+    # A. Normalized coordinates
+    # Note: assumes absolute control (action pos min/max match physical workspace)
     if bool(CONTROL_DELTA) if CONTROL_DELTA is not None else False:
-        print("[warn] CONTROL_DELTA=True：当前 CCG 障碍物归一化仍使用 action_normalizer 的 pos 范围，可能与物理空间不一致。建议使用 *_abs 数据集。")
+        print("[warn] CONTROL_DELTA=True: CCG obstacle normalization still uses action_normalizer pos range, which may not match physical space. Prefer *_abs datasets.")
     pos_min = dataset.action_normalizer.min_val[:3]
     pos_max = dataset.action_normalizer.max_val[:3]
     norm_obs_pos = (obstacle_pos_phys - pos_min) / (pos_max - pos_min) * 2 - 1
     obs_pos_tensor = torch.tensor(norm_obs_pos, device=device, dtype=torch.float32).unsqueeze(0)
 
-    # B. 物理坐标
+    # B. Physical coordinates
     obs_phys_tensor = torch.tensor(obstacle_pos_phys, device=device, dtype=torch.float32)
 
-    # --- 3. 环境重置 ---
-    # (wrapper.seed已经在上面设置过了，这里直接reset)
+    # --- 3. Environment reset ---
+    # (wrapper.seed set above; reset directly)
     obs = wrapper.reset()
     obs_deque = collections.deque([obs] * obs_horizon, maxlen=obs_horizon)
-    # 渲染开关：关闭时避免任何 render 调用，imgs 保持为空
+    # Render toggle: skip render when off; imgs stays empty
     imgs = [wrapper.render()] if (render and (not collect_trajectory)) else []
     rewards = []
     
     trajectory_log = [] 
     has_collided = False
     
-    # [关键修改 2] 物理碰撞判定阈值改为 0.025
+    # [Key change 2] Physical collision threshold
     COLLISION_THRESHOLD = float(_ccg_cfg["collision_threshold_phys"])
 
-    # 初始 latent action（跨任务：从 obs 自动初始化；避免 start_dim 写死）
+    # Initial latent action (cross-task: auto-init from obs; no hard-coded start_dim)
     na = _init_na_from_obs(obs, dataset, _ccg_eef_pos_start, CONTROL_DELTA, device)
     na_from_prev_chunk = na
     
-    # 状态变量
+    # State variables
     cached_grad = torch.zeros_like(na).squeeze(1)
     cached_prob = 0.0          
     current_dynamic_scale = 0.0 
@@ -168,12 +168,12 @@ def run_ccg_phys_vis_inference(
     sigma_infer = 0.05 
 
     with torch.no_grad():
-        # 进度条
+        # Progress bar
         pbar = tqdm(total=max_steps, desc=f"Seed {seed}", disable=collect_trajectory)
         
         while not done and step_idx < max_steps:
             
-            # --- 准备 Observation ---
+            # --- Prepare observation ---
             obs_seq = np.stack(obs_deque)
             nobs = dataset.obs_normalizer.normalize(obs_seq)
             cond_flat = torch.from_numpy(nobs).to(device, dtype=torch.float32).flatten(start_dim=0).unsqueeze(0)
@@ -181,13 +181,13 @@ def run_ccg_phys_vis_inference(
             
             na = na_from_prev_chunk
             
-            # --- 执行 Action Chunk ---
+            # --- Execute action chunk ---
             for i in range(action_horizon):
                 t_scalar = np.clip(i * dt_val, 1e-3, 1.0 - 1e-3)
                 t_tensor = torch.tensor([t_scalar], device=device, dtype=torch.float32)
 
-                # --- A. 物理距离计算 ---
-                # 统一使用真实 eef_pos（来自 obs），避免 delta/absolute 语义混淆
+                # --- A. Physical distance ---
+                # Use true eef_pos from obs (avoids delta/absolute confusion)
                 curr_xyz_np = _get_eef_pos_from_obs(obs, _ccg_eef_pos_start)
                 curr_xyz = torch.tensor(curr_xyz_np, device=device, dtype=torch.float32)
                 dist_to_obs = torch.norm(curr_xyz - obs_phys_tensor).item()
@@ -195,11 +195,11 @@ def run_ccg_phys_vis_inference(
                 if collect_trajectory:
                     trajectory_log.append(curr_xyz_np.copy())
 
-                # [使用统一后的阈值判定]
+                # [Unified threshold]
                 if dist_to_obs < COLLISION_THRESHOLD:
                     has_collided = True
 
-                # --- B. CCG 引导计算 ---
+                # --- B. CCG guidance ---
                 effective_scale = 0.0 if collect_trajectory else guidance_scale
 
                 if dist_to_obs < activation_dist and effective_scale > 0:
@@ -219,7 +219,7 @@ def run_ccg_phys_vis_inference(
                     cached_prob = 0.0
                     current_dynamic_scale = 0.0
 
-                # --- C. Drift 计算 ---
+                # --- C. Drift computation ---
                 base_drift = get_drift(na, t_tensor, o_test, sigma_infer)
                 total_drift = base_drift - current_dynamic_scale * cached_grad
                 
@@ -235,7 +235,7 @@ def run_ccg_phys_vis_inference(
                 if (not collect_trajectory) and render:
                     img_rgb = wrapper.render().copy()
                     
-                    # === 可视化部分 ===
+                    # === Visualization ===
                     if img_rgb.shape[0] > 64:
                         h, w = img_rgb.shape[:2]
                         sim_obj = getattr(wrapper, 'sim', None) 
@@ -292,7 +292,7 @@ def run_ccg_phys_vis_inference(
                         #cv2.putText(img_rgb, f"Scale: {current_dynamic_scale:.1f}", (10, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 1, cv2.LINE_AA)
 
                         # Red Border Warning
-                        # [关键修改 3] 可视化里的阈值也统一为 0.025
+                        # [Key change 3] visualization threshold matches collision threshold
                         COLLISION_DIST = float(_ccg_cfg["collision_threshold_phys"])
                         WARNING_DIST = float(_ccg_cfg["warning_dist_phys"])
                         if dist_to_obs < WARNING_DIST:
@@ -322,17 +322,17 @@ def run_ccg_phys_vis_inference(
 
 
 # =========================================================
-# 4. 实验主循环
+# 4. Main experiment loop
 # =========================================================
 
 def run_experiment_100_trials(render_and_save=True):
-    # 确保跨任务配置已就绪（避免依赖上面的训练 cell）
+    # Ensure cross-task config is ready (no dependency on training cell above)
     global _ccg_cfg
     if "_ccg_cfg" not in globals():
         _ccg_task_name = _infer_task_name_from_dataset_path(dataset_path)
         _ccg_cfg = _task_cfg(_ccg_task_name)
 
-    # 1. 建立文件夹结构（可选：仅在 render_and_save=True 时创建）
+    # 1. Create folder structure (only when render_and_save=True)
     base_dir = CCG_RESULTS_DIR
     sub_dirs = None
     if render_and_save:
@@ -354,29 +354,29 @@ def run_experiment_100_trials(render_and_save=True):
     valid_count = 0
     current_seed = 0
     
-    print(f"开始 100 次实验: Base Pass -> Set Obstacle -> CCG Run")
+    print(f"Starting 100 trials: Base Pass -> Set Obstacle -> CCG Run")
     
     pbar = tqdm(total=total_needed, desc="Valid Trials")
     
     while valid_count < total_needed:
         current_seed += 1
         
-        # --- Phase 1: Base Run (无障碍物，无引导) ---
+        # --- Phase 1: Base run (no obstacle, no guidance) ---
         _, max_r_base, traj_base, _ = run_ccg_phys_vis_inference(
-            obstacle_pos_phys=None, # 无障碍
+            obstacle_pos_phys=None, # no obstacle
             critic_model_path=str(_ccg_cfg["critic_checkpoint_path"]),
-            guidance_scale=0.0,     # 无引导
+            guidance_scale=0.0,     # no guidance
             seed=current_seed,
-            collect_trajectory=True # 只跑数值，不渲染
+            collect_trajectory=True # numeric only, no rendering
         )
         
-        # 如果 Base Policy 本身就失败，跳过这个种子
+        # Skip seed if base policy already fails
         if max_r_base < 1.0:
             continue
             
-        # --- Phase 2: 设置障碍物 ---
+        # --- Phase 2: Place obstacle ---
         traj_len = len(traj_base)
-        if traj_len < 10: continue # 轨迹太短异常处理
+        if traj_len < 10: continue # trajectory too short
         
         idx_start = int(traj_len * 0.02)
         idx_end = int(traj_len * 0.04)
@@ -399,7 +399,7 @@ def run_experiment_100_trials(render_and_save=True):
         obstacle_pos_selected = base_pos + random_offset
         #obstacle_pos_selected = traj_base[obs_idx]
         
-        # --- Phase 3: CCG Run (有障碍物，有引导) ---
+        # --- Phase 3: CCG run (obstacle + guidance) ---
         imgs, max_r_ccg, _, has_collided = run_ccg_phys_vis_inference(
             obstacle_pos_phys=obstacle_pos_selected,
             critic_model_path=str(_ccg_cfg["critic_checkpoint_path"]),
@@ -407,11 +407,11 @@ def run_experiment_100_trials(render_and_save=True):
             power_k=float(CCG_HP["power_k"]),
             activation_dist=float(CCG_HP["activation_dist"]),
             seed=current_seed,
-            collect_trajectory=False, # 是否收集轨迹
-            render=render_and_save,   # 是否渲染（用于 GIF）
+            collect_trajectory=False, # trajectory collection off
+            render=render_and_save,   # render for GIF
         )
         
-        # --- Phase 4: 分类与保存 ---
+        # --- Phase 4: Classify and save ---
         category = ""
         save_path = ""
         
@@ -431,7 +431,7 @@ def run_experiment_100_trials(render_and_save=True):
             if render_and_save:
                 save_path = os.path.join(sub_dirs["success"], f"seed_{current_seed}_success.gif")
             
-        # 保存 GIF（可选）
+        # Save GIF (optional)
         if render_and_save:
             imageio.mimsave(save_path, imgs, fps=15)
         
@@ -445,23 +445,22 @@ def run_experiment_100_trials(render_and_save=True):
 
     pbar.close()
     
-    # --- 输出最终统计 ---
+    # --- Final statistics ---
     print("\n" + "="*40)
-    print("实验结束！统计结果如下：")
-    print(f"总有效实验次数: {total_needed}")
-    print(f"1. 碰撞 (Collision):              {stats['collision']} ({stats['collision']}%)")
-    print(f"2. 避障但在任务中失败 (Failure):    {stats['failure']} ({stats['failure']}%)")
-    print(f"3. 成功避障并完成任务 (Success):    {stats['success']} ({stats['success']}%)")
+    print("Experiment finished! Summary:")
+    print(f"Total valid trials: {total_needed}")
+    print(f"1. Collision:                         {stats['collision']} ({stats['collision']}%)")
+    print(f"2. Avoided obstacle but task failed:  {stats['failure']} ({stats['failure']}%)")
+    print(f"3. Success (avoided + task done):     {stats['success']} ({stats['success']}%)")
     print("="*40)
     if render_and_save:
-        print(f"结果已保存在 {base_dir} 目录下")
+        print(f"Results saved under {base_dir}")
     else:
-        print("本次未开启渲染/保存（render_and_save=False），未生成 GIF 文件。")
+        print("Rendering/saving disabled (render_and_save=False); no GIF files generated.")
 
-# 运行实验
-# 开关：是否渲染并保存 GIF
+# Run experiment
+# Toggle: render and save GIFs
 RENDER_AND_SAVE = True #🚪
-# --- 模块化补全：用 __main__ 守卫包裹真正的实验入口 ---
-#     `python -m inference.inference_ccg` 会跑 CCG 实验。
+# --- Module entry: __main__ guard for `python -m inference.inference_ccg` ---
 if __name__ == "__main__":
     run_experiment_100_trials(render_and_save=RENDER_AND_SAVE)
