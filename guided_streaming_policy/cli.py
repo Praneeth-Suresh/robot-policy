@@ -1,7 +1,11 @@
 import argparse
 
 from guided_streaming_policy.doctor import render_environment_report
-from guided_streaming_policy.pusht_legacy import TASKS, run_task, task_names
+from guided_streaming_policy import pusht_legacy, robomimic_legacy
+
+
+def _all_task_names() -> list[str]:
+    return pusht_legacy.task_names() + robomimic_legacy.task_names()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -12,10 +16,17 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("check-env", help="Report workspace and dependency status.")
-    subparsers.add_parser("list-tasks", help="List available Push-T tasks.")
+    subparsers.add_parser("list-tasks", help="List available Push-T and Robotic_mimic tasks.")
 
-    run_parser = subparsers.add_parser("run", help="Run a Push-T task.")
-    run_parser.add_argument("task", choices=task_names(), help="Task name returned by `gsp list-tasks`.")
+    run_parser = subparsers.add_parser("run", help="Run a Push-T or Robotic_mimic task.")
+    run_parser.add_argument("task", choices=_all_task_names(), help="Task name returned by `gsp list-tasks`.")
+    run_parser.add_argument(
+        "--task",
+        dest="robomimic_task",
+        choices=robomimic_legacy.TASK_CHOICES,
+        default=robomimic_legacy.DEFAULT_TASK,
+        help="robomimic task variant (can/square/lift); only used by mimic-* tasks.",
+    )
     run_parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -31,13 +42,17 @@ def _handle_check_env() -> int:
 
 
 def _handle_list_tasks() -> int:
-    for task in TASKS:
-        print(f"{task.name:18s} {task.module:40s} {task.description}")
+    for task in (*pusht_legacy.TASKS, *robomimic_legacy.TASKS):
+        print(f"{task.name:20s} {task.module:40s} {task.description}")
     return 0
 
 
 def _handle_run(args: argparse.Namespace) -> int:
-    return run_task(args.task, dry_run=args.dry_run)
+    if args.task in set(robomimic_legacy.task_names()):
+        return robomimic_legacy.run_task(
+            args.task, task=args.robomimic_task, dry_run=args.dry_run
+        )
+    return pusht_legacy.run_task(args.task, dry_run=args.dry_run)
 
 
 def main(argv: list[str] | None = None) -> int:

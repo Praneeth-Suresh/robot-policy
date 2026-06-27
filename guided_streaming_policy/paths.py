@@ -7,3 +7,7 @@ def repo_root() -> Path:
 
 def pusht_root() -> Path:
     return repo_root() / "Push-T"
+
+
+def robomimic_root() -> Path:
+    return repo_root() / "Robotic_mimic"

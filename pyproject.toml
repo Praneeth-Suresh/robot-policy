@@ -29,14 +29,27 @@ classifiers = [
 ]
 dependencies = []
 
+# Both extras are pinned to the experiment environment (`streaming-flow-policy`)
+# and share numpy<2, so they are co-installable in a single environment:
+#   pip install -e ".[pusht,robomimic]"
+#
+# NOTE: robosuite==1.3.2 is intentionally NOT listed below. Its metadata pins
+# numba<=0.53.1 and free-mujoco-py==2.1.6, neither installable on Python 3.10,
+# so pip cannot resolve it. The working environment has numba==0.63.1 and
+# mujoco-py==2.1.2.14, i.e. robosuite was installed with --no-deps. Install it
+# the same way after the extras:
+#   pip install robosuite==1.3.2 --no-deps
+#
+# cython is pinned to 0.29.37 because mujoco-py==2.1.2.14 compiles its
+# Cython extension at first import and does not build under Cython 3.x.
 [project.optional-dependencies]
 pusht = [
   "diffusers==0.36.0",
   "gym==0.26.2",
   "imageio==2.37.2",
   "ipython==8.37.0",
-  "numpy==2.2.6",
-  "opencv-python==4.12.0.88",
+  "numpy==1.26.4",
+  "opencv-python==4.9.0.80",
   "pandas==2.3.3",
   "pygame==2.6.1",
   "pymunk==7.2.0",
@@ -45,6 +58,27 @@ pusht = [
   "torch==2.9.1",
   "tqdm==4.67.1",
   "zarr==2.18.3",
+]
+robomimic = [
+  "diffusers==0.36.0",
+  "gym==0.26.2",
+  "h5py==3.15.1",
+  "imageio==2.37.2",
+  "imageio-ffmpeg==0.6.0",
+  "llvmlite==0.46.0",
+  "matplotlib==3.10.8",
+  "mujoco==3.4.0",
+  "cython==0.29.37",
+  "mujoco-py==2.1.2.14",
+  "numba==0.63.1",
+  "numpy==1.26.4",
+  "opencv-python==4.9.0.80",
+  "pandas==2.3.3",
+  "robomimic==0.2.0",
+  "scipy==1.15.3",
+  "torch==2.9.1",
+  "torchvision==0.24.1",
+  "tqdm==4.67.1",
 ]
 
 [project.scripts]
