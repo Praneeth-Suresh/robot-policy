@@ -1,6 +1,6 @@
-# Robotic_mimic Benchmark Guide
+# Robomimic Benchmark Guide
 
-`Robotic_mimic/` contains the benchmark-specific training and inference scripts
+`Robomimic/` contains the benchmark-specific training and inference scripts
 used in this repository for the robomimic low-dim tasks (`can`, `square`,
 `lift`).
 
@@ -63,7 +63,7 @@ If you want to run the original module commands directly (the task is selected
 via the `TASK` environment variable):
 
 ```bash
-cd Robotic_mimic
+cd Robomimic
 TASK=can python -m train.train_policy
 TASK=can python -m train.train_critic
 TASK=can python -m inference.inference_si
@@ -74,14 +74,14 @@ TASK=can python -m inference.inference_steg
 ## Required Asset Layout
 
 ```text
-Robotic_mimic/datasets/
-Robotic_mimic/checkpoint/
-Robotic_mimic/core/
-Robotic_mimic/train/
-Robotic_mimic/inference/
+Robomimic/datasets/
+Robomimic/checkpoint/
+Robomimic/core/
+Robomimic/train/
+Robomimic/inference/
 ```
 
-Datasets are read from `Robotic_mimic/datasets/<task>/ph/low_dim_abs.hdf5`,
-checkpoints are read from `Robotic_mimic/checkpoint/`, and generated results are
+Datasets are read from `Robomimic/datasets/<task>/ph/low_dim_abs.hdf5`,
+checkpoints are read from `Robomimic/checkpoint/`, and generated results are
 written to per-task directories at the benchmark root (`ccg_<task>_results/`,
 `steg_<task>_results/`).

@@ -10,4 +10,4 @@ def pusht_root() -> Path:
 
 
 def robomimic_root() -> Path:
-    return repo_root() / "Robotic_mimic"
+    return repo_root() / "Robomimic"

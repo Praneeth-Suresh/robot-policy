@@ -16,9 +16,9 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("check-env", help="Report workspace and dependency status.")
-    subparsers.add_parser("list-tasks", help="List available Push-T and Robotic_mimic tasks.")
+    subparsers.add_parser("list-tasks", help="List available Push-T and Robomimic tasks.")
 
-    run_parser = subparsers.add_parser("run", help="Run a Push-T or Robotic_mimic task.")
+    run_parser = subparsers.add_parser("run", help="Run a Push-T or Robomimic task.")
     run_parser.add_argument("task", choices=_all_task_names(), help="Task name returned by `gsp list-tasks`.")
     run_parser.add_argument(
         "--task",

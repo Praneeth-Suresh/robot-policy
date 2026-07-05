@@ -31,7 +31,7 @@ def get_task(name: str) -> LegacyTask:
     for task in TASKS:
         if task.name == name:
             return task
-    raise KeyError(f"Unknown Robotic_mimic task: {name}")
+    raise KeyError(f"Unknown Robomimic task: {name}")
 
 
 def task_names() -> list[str]:
@@ -54,7 +54,7 @@ def run_task(
 
     cwd = robomimic_root()
     if not cwd.exists():
-        raise FileNotFoundError(f"Robotic_mimic workspace not found: {cwd}")
+        raise FileNotFoundError(f"Robomimic workspace not found: {cwd}")
 
     command = build_task_command(legacy_task, python_executable=python_executable)
     if dry_run:
@@ -64,8 +64,8 @@ def run_task(
         return 0
 
     env = os.environ.copy()
-    # The original Robotic_mimic scripts select can/square/lift via the TASK
-    # environment variable (see Robotic_mimic/core/config.py); injecting it here
+    # The original Robomimic scripts select can/square/lift via the TASK
+    # environment variable (see Robomimic/core/config.py); injecting it here
     # reproduces that mechanism without touching the original code.
     env["TASK"] = task
     root = str(repo_root())

@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from typing import Optional
 
 from core.config import *  # noqa: F401,F403  (device / obs_horizon / pred_horizon, etc.)
-from core.robotic_mimic_env import get_env
+from core.robomimic_env import get_env
 _env = get_env()
 wrapper      = _env.wrapper
 dataset_path = _env.dataset_path

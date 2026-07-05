@@ -9,7 +9,7 @@ dependencies:
       # pyproject.toml ([pusht] + [robomimic] extras), aligned to the experiment
       # environment (streaming-flow-policy); both share numpy<2.
       - -e ".[pusht,robomimic]"
-# IMPORTANT: robosuite (needed by Robotic_mimic) is NOT installed above. Its
+# IMPORTANT: robosuite (needed by Robomimic) is NOT installed above. Its
 # metadata pins numba<=0.53.1 / free-mujoco-py==2.1.6, which pip cannot resolve
 # on Python 3.10. After creating and activating this env, install it without
 # dependencies (matches the original streaming-flow-policy setup):

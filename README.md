@@ -1,13 +1,13 @@
 # Guided Streaming Stochastic Interpolant Policy
 
 This repository contains the reference research release for Guided Streaming
-Stochastic Interpolant Policy, with benchmark workflows for `Push-T` and `Robotic_mimic`.
+Stochastic Interpolant Policy, with benchmark workflows for `Push-T` and `Robomimic`.
 
 The codebase includes:
 
 - an installable helper package in `guided_streaming_policy/`
 - extracted reusable model and sequence components
-- the original `Push-T` and `Robotic_mimic` training and inference scripts used
+- the original `Push-T` and `Robomimic` training and inference scripts used
 by the project
 
 This is currently a source-checkout release: clone the repository, install it
@@ -45,16 +45,16 @@ Then install **one** of the following:
 
 ```bash
 pip install -e ".[pusht]"            # Push-T only
-pip install -e ".[robomimic]"        # Robotic_mimic only
+pip install -e ".[robomimic]"        # Robomimic only
 pip install -e ".[pusht,robomimic]"  # both, in one unified environment
 ```
 
 If you use a custom PyTorch build for your machine, install that build first and
 then install the repository with `pip install -e .`.
 
-### Robotic_mimic extra setup
+### Robomimic extra setup
 
-`robosuite==1.3.2` is required by `Robotic_mimic` but cannot be resolved by pip on
+`robosuite==1.3.2` is required by `Robomimic` but cannot be resolved by pip on
 Python 3.10 (its metadata pins `numba<=0.53.1` / `free-mujoco-py==2.1.6`). After
 either install path above, add it without dependencies. This matches the original
 experiment environment, which runs `numba==0.63.1` / `mujoco-py==2.1.2.14`:
@@ -77,7 +77,7 @@ Check that your environment and local artifact paths are ready:
 gsp check-env
 ```
 
-List all available tasks (Push-T and Robotic_mimic):
+List all available tasks (Push-T and Robomimic):
 
 ```bash
 gsp list-tasks
@@ -113,9 +113,9 @@ tasks, place the released artifacts at the paths above. If a checkpoint name
 looks old or awkward, keep it unchanged unless you also update the matching
 script and reproduction notes.
 
-## Robotic_mimic
+## Robomimic
 
-`Robotic_mimic` covers the robomimic low-dim tasks (`can`, `square`, `lift`).
+`Robomimic` covers the robomimic low-dim tasks (`can`, `square`, `lift`).
 The same scripts serve all three tasks; pick one with `--task` (default
 `can`), which the CLI forwards to the scripts as the `TASK` environment
 variable.
@@ -128,19 +128,19 @@ gsp run mimic-infer-ccg    --task can
 gsp run mimic-infer-steg   --task square
 ```
 
-As with Push-T, the CLI runs the original `Robotic_mimic` modules in the correct
-working directory, so you do not need to `cd Robotic_mimic` first. Extra
+As with Push-T, the CLI runs the original `Robomimic` modules in the correct
+working directory, so you do not need to `cd Robomimic` first. Extra
 environment variables the original scripts read are passed through, e.g.:
 
 ```bash
 RENDER_GIFS=1 TOTAL_NEEDED=100 gsp run mimic-infer-steg --task square
 ```
 
-The `Robotic_mimic` scripts expect these locations:
+The `Robomimic` scripts expect these locations:
 
 ```text
-Robotic_mimic/datasets/<task>/ph/low_dim_abs.hdf5
-Robotic_mimic/checkpoint/
+Robomimic/datasets/<task>/ph/low_dim_abs.hdf5
+Robomimic/checkpoint/
 ```
 
 Use `gsp check-env` to verify the datasets, checkpoints, and Python
@@ -149,12 +149,12 @@ dependencies for both benchmarks.
 ## Pretrained Checkpoints
 
 Datasets and checkpoints are not committed to git. Released checkpoints for
-both `Push-T` and `Robotic_mimic` are available on Google Drive:
+both `Push-T` and `Robomimic` are available on Google Drive:
 
 https://drive.google.com/drive/folders/18xWIlqNR2cQ2M6FI1H13l6uUxXMkDmC3?usp=drive_link
 
 Download them and place each benchmark's files at the paths shown above
-(`Push-T/checkpoints/` and `Robotic_mimic/checkpoint/`).
+(`Push-T/checkpoints/` and `Robomimic/checkpoint/`).
 
 ## Repository Layout
 
@@ -164,9 +164,9 @@ guided_streaming_policy/pusht/  Push-T-specific package modules
 Push-T/core/                    Compatibility import layer plus task code
 Push-T/train/                   Training entrypoints
 Push-T/inference/               Inference entrypoints
-Robotic_mimic/core/             robomimic task code plus per-task config
-Robotic_mimic/train/            Training entrypoints
-Robotic_mimic/inference/        Inference entrypoints
+Robomimic/core/             robomimic task code plus per-task config
+Robomimic/train/            Training entrypoints
+Robomimic/inference/        Inference entrypoints
 tests/                          Smoke tests for repo-level tooling
 ```
 
@@ -181,10 +181,10 @@ python -m train.train_dp
 python -m train.train_critic
 ```
 
-For `Robotic_mimic` (task selected via the `TASK` env var):
+For `Robomimic` (task selected via the `TASK` env var):
 
 ```bash
-cd Robotic_mimic
+cd Robomimic
 TASK=can python -m train.train_policy
 TASK=square python -m inference.inference_ccg
 ```

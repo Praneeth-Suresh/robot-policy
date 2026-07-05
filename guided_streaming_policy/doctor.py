@@ -107,7 +107,7 @@ def collect_robomimic_report() -> list[CheckResult]:
     checkpoint_dir = root / "checkpoint"
     results.append(CheckResult("artifact-dir:checkpoint", _exists(checkpoint_dir), str(checkpoint_dir)))
 
-    # Matches Robotic_mimic/core/config.py: <root>/datasets/<task>/ph/low_dim_abs.hdf5
+    # Matches Robomimic/core/config.py: <root>/datasets/<task>/ph/low_dim_abs.hdf5
     for task in ("can", "square", "lift"):
         dataset_path = root / "datasets" / task / "ph" / "low_dim_abs.hdf5"
         results.append(CheckResult(f"dataset:{task}", _exists(dataset_path), str(dataset_path)))
@@ -142,5 +142,5 @@ def _render_section(title: str, results: list[CheckResult]) -> list[str]:
 def render_environment_report() -> str:
     lines = _render_section("Push-T", collect_environment_report())
     lines.append("")
-    lines.extend(_render_section("Robotic_mimic", collect_robomimic_report()))
+    lines.extend(_render_section("Robomimic", collect_robomimic_report()))
     return "\n".join(lines)
