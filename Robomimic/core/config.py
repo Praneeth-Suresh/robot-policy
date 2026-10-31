@@ -49,6 +49,7 @@ STEG_HP = dict(_TASK_HP["steg"])
 
 CCG_RESULTS_DIR = os.path.join(PROJECT_ROOT, f"ccg_{TASK}_results")
 STEG_RESULTS_DIR = os.path.join(PROJECT_ROOT, f"steg_{TASK}_results")
+SI_RESULTS_DIR = os.path.join(PROJECT_ROOT, f"si_{TASK}_results")
 
 
 obs_keys = [

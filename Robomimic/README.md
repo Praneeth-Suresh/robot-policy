@@ -82,6 +82,17 @@ Robomimic/inference/
 ```
 
 Datasets are read from `Robomimic/datasets/<task>/ph/low_dim_abs.hdf5`,
-checkpoints are read from `Robomimic/checkpoint/`, and generated results are
-written to per-task directories at the benchmark root (`ccg_<task>_results/`,
-`steg_<task>_results/`).
+checkpoints are read from `Robomimic/checkpoint/`, and generated GIFs are
+written to per-task directories at the benchmark root
+(`si_<task>_results/`, `ccg_<task>_results/`, `steg_<task>_results/`).
+
+For a short rendered smoke run, set `TOTAL_NEEDED=1` for CCG and STEG:
+
+```powershell
+$env:TASK = "can"
+$env:TOTAL_NEEDED = "1"
+$env:RENDER_GIFS = "1"
+python -m inference.inference_si
+python -m inference.inference_ccg
+python -m inference.inference_steg
+```

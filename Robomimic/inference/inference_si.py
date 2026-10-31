@@ -4,10 +4,11 @@ import collections
 
 import numpy as np
 import torch
+import imageio
 from tqdm.auto import tqdm
 
 from core.config import *  # noqa: F401,F403  (device / obs_horizon / action_horizon / pred_horizon, etc.)
-from core.config import CKPT_PATH_SI
+from core.config import CKPT_PATH_SI, SI_RESULTS_DIR
 from core.robomimic_env import get_env
 _env = get_env()
 wrapper       = _env.wrapper
@@ -88,11 +89,12 @@ def get_drift(x, t, global_cond, sigma_infer, eps=1e-6):
 # =========================================================
 # SSIP inference (auto-adapts control_delta: delta / absolute)
 # =========================================================
-def run_si_inference(sigma_infer, title):
+def run_si_inference(sigma_infer, title, render=True, save_path=None):
     # 1. Reset environment
     obs = wrapper.reset() 
     obs_deque = collections.deque([obs] * obs_horizon, maxlen=obs_horizon)
     rewards = []
+    imgs = [wrapper.render()] if render else []
     # Robust success counting:
     # - sparse-reward robosuite tasks (reward_shaping=False): reward>0 ≈ success
     # - also check success/task_success in info (key varies by version)
@@ -220,6 +222,8 @@ def run_si_inference(sigma_infer, title):
                     
                     obs_deque.append(obs)
                     rewards.append(reward)
+                    if render:
+                        imgs.append(wrapper.render().copy())
                     
                     step_idx += 1
                     pbar.update(1)
@@ -245,12 +249,28 @@ def run_si_inference(sigma_infer, title):
                 
                 if done: break
 
+    if save_path is not None and imgs:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        imageio.mimsave(save_path, imgs, fps=15)
+        print(f"Rendered trajectory saved to {save_path}")
+
     print(f"Inference done! Max reward: {max(rewards) if rewards else 0} | success_steps: {success_steps}")
+    return rewards, imgs
 
 
 if __name__ == "__main__":
+    os.makedirs(SI_RESULTS_DIR, exist_ok=True)
+
     # 1. ODE mode (smooth)
-    run_si_inference(sigma_infer=0.0, title="Streaming SI (ODE Mode)")
+    run_si_inference(
+        sigma_infer=0.0,
+        title="Streaming SI (ODE Mode)",
+        save_path=os.path.join(SI_RESULTS_DIR, "streaming_si_ode.gif"),
+    )
 
     # 2. SDE mode (exploration)
-    run_si_inference(sigma_infer=0.02, title="Streaming SI (SDE Mode)")
+    run_si_inference(
+        sigma_infer=0.02,
+        title="Streaming SI (SDE Mode)",
+        save_path=os.path.join(SI_RESULTS_DIR, "streaming_si_sde.gif"),
+    )

@@ -350,7 +350,7 @@ def run_experiment_100_trials(render_and_save=True):
         "success": 0
     }
     
-    total_needed = 40 #🚪
+    total_needed = int(os.environ.get("TOTAL_NEEDED", "40"))
     valid_count = 0
     current_seed = 0
     
@@ -463,4 +463,6 @@ def run_experiment_100_trials(render_and_save=True):
 RENDER_AND_SAVE = True #🚪
 # --- Module entry: __main__ guard for `python -m inference.inference_ccg` ---
 if __name__ == "__main__":
-    run_experiment_100_trials(render_and_save=RENDER_AND_SAVE)
+    run_experiment_100_trials(
+        render_and_save=RENDER_AND_SAVE,
+    )
