@@ -11,7 +11,7 @@ def _all_task_names() -> list[str]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gsp",
-        description="Repo helper CLI for the Guided Streaming Policy project.",
+        description="CLI for robot-policy experiments and guidance benchmarks.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

@@ -1,4 +1,4 @@
-name: guided-streaming-policy
+name: robot-policy
 channels:
   - conda-forge
 dependencies:
@@ -14,7 +14,7 @@ dependencies:
 # on Python 3.10. After creating and activating this env, install it without
 # dependencies (matches the original streaming-flow-policy setup):
 #
-#   conda activate guided-streaming-policy
+#   conda activate robot-policy
 #   pip install robosuite==1.3.2 --no-deps
 #
 # robosuite/mujoco-py also need the MuJoCo 2.1.0 binaries at runtime:

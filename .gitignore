@@ -27,6 +27,7 @@ Robomimic/ccg_*_results/
 Robomimic/steg_*_results/
 artifacts/
 artifacts2/
+docs/figures/
 
 .env
 .env.*

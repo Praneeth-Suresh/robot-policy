@@ -1,2 +1,1 @@
-"""Task-agnostic core components for streaming-policy experiments."""
-
+"""Task-agnostic components for robot-policy experiments."""

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "guided-streaming-policy"
 version = "0.1.0"
-description = "Lightweight repo tooling for the Guided Streaming Stochastic Interpolant Policy project."
+description = "Reusable tooling and guidance components for robot-policy experiments."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
