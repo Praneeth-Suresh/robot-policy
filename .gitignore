@@ -21,5 +21,12 @@ Push-T/data/
 Push-T/checkpoints/
 Push-T/outputs/
 
+Robomimic/datasets/
+Robomimic/checkpoint/
+Robomimic/ccg_*_results/
+Robomimic/steg_*_results/
+artifacts/
+artifacts2/
+
 .env
 .env.*

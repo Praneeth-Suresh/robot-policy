@@ -1,201 +1,114 @@
 # Guided Streaming Stochastic Interpolant Policy
 
-This repository contains the reference research release for Guided Streaming
-Stochastic Interpolant Policy, with benchmark workflows for `Push-T` and `Robomimic`.
+Reference implementation for the paper's SSIP, STEG, and CCG experiments:
+[arXiv:2605.10051](https://arxiv.org/abs/2605.10051).
 
-The codebase includes:
+## Setup
 
-- an installable helper package in `guided_streaming_policy/`
-- extracted reusable model and sequence components
-- the original `Push-T` and `Robomimic` training and inference scripts used
-by the project
+The released environment uses Python 3.10. From the repository root:
 
-This is currently a source-checkout release: clone the repository, install it
-editable, and run the benchmark tasks from that checkout. The benchmark scripts
-are kept numerically aligned with the reported results; see
-[Reproducibility Notes](docs/reproducibility.md).
-
-## Installation
-
-Two installation paths are supported:
-
-- Conda environment
-- pip extras
-
-### Recommended: Conda
-
-```bash
+```powershell
 conda env create -f environment.yml
 conda activate guided-streaming-policy
-```
-
-### Alternative: pip extras
-
-Requires Python >= 3.10. Your default `python` may be older (the editable
-install refuses < 3.10), so create the venv with an explicit 3.10 interpreter
-or just use the Conda path above:
-
-```bash
-python3.10 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-```
-
-Then install **one** of the following:
-
-```bash
-pip install -e ".[pusht]"            # Push-T only
-pip install -e ".[robomimic]"        # Robomimic only
-pip install -e ".[pusht,robomimic]"  # both, in one unified environment
-```
-
-If you use a custom PyTorch build for your machine, install that build first and
-then install the repository with `pip install -e .`.
-
-### Robomimic extra setup
-
-`robosuite==1.3.2` is required by `Robomimic` but cannot be resolved by pip on
-Python 3.10 (its metadata pins `numba<=0.53.1` / `free-mujoco-py==2.1.6`). After
-either install path above, add it without dependencies. This matches the original
-experiment environment, which runs `numba==0.63.1` / `mujoco-py==2.1.2.14`:
-
-```bash
-pip install robosuite==1.3.2 --no-deps
-```
-
-`robosuite` / `mujoco-py` also need the MuJoCo 2.1.0 binaries at runtime:
-
-```bash
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin
-```
-
-## Quickstart
-
-Check that your environment and local artifact paths are ready:
-
-```bash
 gsp check-env
 ```
 
-List all available tasks (Push-T and Robomimic):
+If the environment already exists:
 
-```bash
-gsp list-tasks
+```powershell
+conda install -n guided-streaming-policy -y cmake
+conda run -n guided-streaming-policy python -m pip install -e ".[pusht,robomimic]"
+conda run -n guided-streaming-policy python -m pip install robosuite==1.3.2 --no-deps
 ```
 
-Run a task from the repository root:
+The Robomimic stack also expects `mujoco-py==2.1.2.14`, MuJoCo 2.1.0, and
+Linux OSMesa/GL libraries. It is not runnable on this Windows host; use Linux
+for Robomimic rendering.
 
-```bash
-gsp run train-policy
-gsp run train-dp
-gsp run train-critic
-gsp run infer-static-ccg
-```
+## Assets
 
-The helper CLI executes the existing `Push-T` modules in the correct working
-directory, so you do not need to `cd Push-T` before every command.
+Download the released checkpoints from:
 
-## Expected Assets
+<https://drive.google.com/drive/folders/18xWIlqNR2cQ2M6FI1H13l6uUxXMkDmC3>
 
-The `Push-T` scripts expect these locations:
+Place them in:
 
 ```text
-Push-T/data/pusht_cchi_v7_replay.zarr.zip
 Push-T/checkpoints/
-Push-T/outputs/
-```
-
-Use `gsp check-env` at any time to verify whether the dataset, checkpoints, and
-Python dependencies are all present.
-
-The dataset and checkpoints are not committed to git. Before running benchmark
-tasks, place the released artifacts at the paths above. If a checkpoint name
-looks old or awkward, keep it unchanged unless you also update the matching
-script and reproduction notes.
-
-## Robomimic
-
-`Robomimic` covers the robomimic low-dim tasks (`can`, `square`, `lift`).
-The same scripts serve all three tasks; pick one with `--task` (default
-`can`), which the CLI forwards to the scripts as the `TASK` environment
-variable.
-
-```bash
-gsp run mimic-train-policy --task can
-gsp run mimic-train-critic --task square
-gsp run mimic-infer-si     --task lift
-gsp run mimic-infer-ccg    --task can
-gsp run mimic-infer-steg   --task square
-```
-
-As with Push-T, the CLI runs the original `Robomimic` modules in the correct
-working directory, so you do not need to `cd Robomimic` first. Extra
-environment variables the original scripts read are passed through, e.g.:
-
-```bash
-RENDER_GIFS=1 TOTAL_NEEDED=100 gsp run mimic-infer-steg --task square
-```
-
-The `Robomimic` scripts expect these locations:
-
-```text
-Robomimic/datasets/<task>/ph/low_dim_abs.hdf5
 Robomimic/checkpoint/
 ```
 
-Use `gsp check-env` to verify the datasets, checkpoints, and Python
-dependencies for both benchmarks.
-
-## Pretrained Checkpoints
-
-Datasets and checkpoints are not committed to git. Released checkpoints for
-both `Push-T` and `Robomimic` are available on Google Drive:
-
-https://drive.google.com/drive/folders/18xWIlqNR2cQ2M6FI1H13l6uUxXMkDmC3?usp=drive_link
-
-Download them and place each benchmark's files at the paths shown above
-(`Push-T/checkpoints/` and `Robomimic/checkpoint/`).
-
-## Repository Layout
+Datasets must be placed at:
 
 ```text
-guided_streaming_policy/core/   Reusable model and sequence utilities
-guided_streaming_policy/pusht/  Push-T-specific package modules
-Push-T/core/                    Compatibility import layer plus task code
-Push-T/train/                   Training entrypoints
-Push-T/inference/               Inference entrypoints
-Robomimic/core/             robomimic task code plus per-task config
-Robomimic/train/            Training entrypoints
-Robomimic/inference/        Inference entrypoints
-tests/                          Smoke tests for repo-level tooling
+Push-T/data/pusht_cchi_v7_replay.zarr.zip
+Robomimic/datasets/can/ph/low_dim_abs.hdf5
+Robomimic/datasets/square/ph/low_dim_abs.hdf5
+Robomimic/datasets/lift/ph/low_dim_abs.hdf5
 ```
 
-## Direct Module Usage
+The public upstream datasets used here are Push-T from
+<https://diffusion-policy.cs.columbia.edu/data/training/pusht.zip> and
+Robomimic PH low-dimensional datasets from
+<https://huggingface.co/datasets/amandlek/robomimic/tree/main/v1.5>.
 
-If you prefer to invoke the original module paths directly:
+Check assets and available commands:
 
-```bash
-cd Push-T
-python -m train.train_policy
-python -m train.train_dp
-python -m train.train_critic
+```powershell
+gsp check-env
+gsp list-tasks
 ```
 
-For `Robomimic` (task selected via the `TASK` env var):
+## Run experiments
 
-```bash
-cd Robomimic
-TASK=can python -m train.train_policy
-TASK=square python -m inference.inference_ccg
+All commands run from the repository root.
+
+### Push-T
+
+```powershell
+gsp run train-policy
+gsp run train-dp
+gsp run train-critic
+gsp run infer-static-naive
+gsp run infer-static-steg
+gsp run infer-static-ccg
+gsp run infer-dynamic-naive
+gsp run infer-dynamic-steg
+gsp run infer-dynamic-ccg
 ```
 
-## Development Checks
+The inference scripts save rendered GIF trajectories under `Push-T/outputs/`.
+The static CCG script uses its built-in 400-trial batch.
 
-```bash
+### Robomimic
+
+Select `can`, `square`, or `lift`:
+
+```powershell
+gsp run mimic-train-policy --task can
+gsp run mimic-train-critic --task can
+gsp run mimic-infer-si --task can
+gsp run mimic-infer-ccg --task can
+gsp run mimic-infer-steg --task can
+```
+
+For rendered GIFs in PowerShell:
+
+```powershell
+$env:RENDER_GIFS = "1"
+$env:TOTAL_NEEDED = "100"
+gsp run mimic-infer-steg --task square
+```
+
+Robomimic writes results to `ccg_<task>_results/` and `steg_<task>_results/`.
+
+## Development checks
+
+```powershell
 python -m unittest discover -v
 python -m compileall -q guided_streaming_policy Push-T tests
 ```
 
-## License
-
-Released under the MIT license. See [LICENSE](LICENSE).
+Datasets, checkpoints, generated GIFs, and result directories are intentionally
+gitignored. Only source code, configuration, tests, and documentation belong in
+the GitHub repository.
