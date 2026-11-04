@@ -46,25 +46,59 @@ published.
 
 ## Setup
 
-The released environment uses Python 3.10. From the repository root:
+UV is the supported environment manager. Use WSL2/Linux for Robomimic,
+MuJoCo 2.1, and GPU-based simulation. Keep the checkout in the WSL
+filesystem rather than under `/mnt/c`. The released environment uses Python
+3.10. Install UV first if it is not already available:
 
-```powershell
-conda env create -f environment.yml
-conda activate robot-policy
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### Push-T and shared development environment
+
+```bash
+uv python install 3.10
+uv venv --python 3.10
+source .venv/bin/activate
+uv sync --extra pusht
 gsp check-env
 ```
 
-For an existing environment:
+For an existing checkout, `uv sync --extra pusht` creates or updates the
+project environment from `pyproject.toml` and `uv.lock`.
 
-```powershell
-conda install -n robot-policy -y cmake
-conda run -n robot-policy python -m pip install -e ".[pusht,robomimic]"
-conda run -n robot-policy python -m pip install robosuite==1.3.2 --no-deps
+### Robomimic environment
+
+Robomimic is kept in a separate environment because its legacy simulator
+dependencies are not compatible with every modern robotics stack:
+
+```bash
+uv venv .venv-robomimic --python 3.10
+source .venv-robomimic/bin/activate
+UV_PROJECT_ENVIRONMENT=.venv-robomimic uv sync --extra robomimic
+uv pip install --no-deps robosuite==1.3.2
+gsp check-env
 ```
 
 Robomimic additionally requires `mujoco-py==2.1.2.14`, MuJoCo 2.1.0, and
-Linux OSMesa/GL libraries. It is not runnable on this Windows host; use Linux
-for Robomimic rendering.
+Linux OSMesa/GL libraries. Install the system prerequisites before building
+`mujoco-py`:
+
+```bash
+sudo apt update
+sudo apt install -y build-essential cmake patchelf \
+  libosmesa6-dev libgl1-mesa-dev libglew-dev libglfw3 libglfw3-dev
+```
+
+Place MuJoCo 2.1.0 under `~/.mujoco/mujoco210/` and add its libraries:
+
+```bash
+echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Robomimic rendering is not supported on the Windows host; use WSL2/Linux.
 
 ## Assets and available tasks
 
@@ -78,7 +112,7 @@ The public datasets are Push-T from
 robomimic PH low-dimensional data from
 [https://huggingface.co/datasets/amandlek/robomimic/tree/main/v1.5](https://huggingface.co/datasets/amandlek/robomimic/tree/main/v1.5).
 
-```powershell
+```bash
 gsp check-env
 gsp list-tasks
 ```
@@ -89,7 +123,7 @@ All commands run from the repository root.
 
 ### Push-T
 
-```powershell
+```bash
 gsp run train-policy
 gsp run train-dp
 gsp run train-critic
@@ -107,7 +141,7 @@ Rendered trajectories are written to `Push-T/outputs/`.
 
 Choose `can`, `square`, or `lift`:
 
-```powershell
+```bash
 gsp run mimic-train-policy --task can
 gsp run mimic-train-critic --task can
 gsp run mimic-infer-si --task can
@@ -171,9 +205,9 @@ follow the upstream experiment READMEs:
 
 ## Development checks
 
-```powershell
-python -m unittest discover -v
-python -m compileall -q guided_streaming_policy Push-T tests
+```bash
+uv run python -m unittest discover -v
+uv run python -m compileall -q guided_streaming_policy Push-T tests
 ```
 
 Datasets, checkpoints, rendered trajectories, and result directories are

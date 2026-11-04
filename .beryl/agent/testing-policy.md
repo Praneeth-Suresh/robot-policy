@@ -6,8 +6,8 @@
 | --- | --- | --- | --- |
 | Markdown sanity | `./.beryl/scripts/check-md.sh` | available | Unclosed fences and tabs |
 | Beryl deterministic gate | `./.beryl/scripts/check.sh` | available | Beryl surface, markdown, secrets, and project checks |
-| Unit tests | `python -m unittest discover -v` | available | Focused tests in `tests/` |
-| Compile smoke check | `python -m compileall -q guided_streaming_policy Push-T tests` | available | Catches syntax/import compilation errors |
+| Unit tests | `uv run python -m unittest discover -v` | available after UV sync | Focused tests in `tests/` |
+| Compile smoke check | `uv run python -m compileall -q guided_streaming_policy Push-T tests` | available after UV sync | Catches syntax/import compilation errors |
 | Environment check | `gsp check-env` | available after install | Dependency and asset readiness |
 | Lint | not configured | unavailable | Do not invent a formatter or linter |
 | Typecheck | not configured | unavailable | Python project has no typecheck command |
@@ -19,7 +19,7 @@
 2. Run the smallest relevant unit test or compile check.
 3. For experiment changes, state the task, dataset, checkpoint, seed, output
    directory, and comparison baseline before implementation.
-4. Run `python -m unittest discover -v`, the compile check, and
+4. Run `uv run python -m unittest discover -v`, the compile check, and
    `./.beryl/scripts/check.sh` when the change is broad or documentation/config
    is affected.
 5. Report platform-dependent or asset-dependent checks that could not run.

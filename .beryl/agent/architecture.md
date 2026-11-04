@@ -75,6 +75,10 @@ benchmark scripts retain ownership of simulator-specific details.
 - 2026-10-31: Install Beryl with agent-core, tool-shims, and checks only,
   because hooks, CI, driver workflows, and frontend skills are not needed for
   this research workspace.
+- 2026-11-04: Use UV with a committed lockfile as the primary Python
+  environment workflow, while retaining the Conda file as a documented
+  fallback. Keep Robomimic in a separate UV environment because its legacy
+  MuJoCo stack should not constrain future simulator environments.
 
 ## Pressure Points
 

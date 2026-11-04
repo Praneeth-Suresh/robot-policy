@@ -1,3 +1,4 @@
+# Legacy Conda fallback. The supported setup uses pyproject.toml and uv.lock.
 name: robot-policy
 channels:
   - conda-forge

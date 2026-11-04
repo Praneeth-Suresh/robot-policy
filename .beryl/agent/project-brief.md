@@ -23,8 +23,9 @@ silently changing data handling, model interfaces, or evaluation conditions.
 
 ## Primary Workflows
 
-1. **Prepare an environment**: create `robot-policy` from `environment.yml`,
-   install `robosuite==1.3.2 --no-deps` where needed, then run `gsp check-env`.
+1. **Prepare an environment**: use UV with Python 3.10 and the `pusht` or
+   `robomimic` extra, install `robosuite==1.3.2 --no-deps` in the isolated
+   Robomimic environment where needed, then run `gsp check-env`.
 2. **Run Push-T experiments**: use `gsp run train-policy`,
    `train-dp`, `train-critic`, and the static/dynamic inference commands.
    Rendered trajectories go to `Push-T/outputs/`.
@@ -42,13 +43,14 @@ silently changing data handling, model interfaces, or evaluation conditions.
 
 From the repository root:
 
-```powershell
-conda env create -f environment.yml
-conda activate robot-policy
+```bash
+uv venv --python 3.10
+source .venv/bin/activate
+uv sync --extra pusht
 gsp check-env
 gsp list-tasks
-python -m unittest discover -v
-python -m compileall -q guided_streaming_policy Push-T tests
+uv run python -m unittest discover -v
+uv run python -m compileall -q guided_streaming_policy Push-T tests
 ```
 
 Push-T:
