@@ -297,6 +297,18 @@ def build_env_and_wrapper(dataset_path: str, obs_keys: Optional[List[str]] = Non
     print(f"Environment name: {env_meta['env_name']}")
     print(f"Environment type: {env_meta['type']}")
 
+    # Robomimic 1.5.1 metadata includes newer robosuite options and nests the
+    # robot controller under ``body_parts``. Normalize it for robosuite 1.3.x,
+    # which is the API supported by robomimic 0.2 in this environment.
+    env_kwargs = env_meta.get("env_kwargs", {})
+    env_kwargs.pop("lite_physics", None)
+    controller_configs = env_kwargs.get("controller_configs", {})
+    body_parts = controller_configs.get("body_parts", {})
+    if "right" in body_parts:
+        legacy_controller = dict(body_parts["right"])
+        legacy_controller.setdefault("type", "OSC_POSE")
+        env_kwargs["controller_configs"] = legacy_controller
+
     # Tell robomimic these keys are low_dim (required before building env)
     ObsUtils.initialize_obs_modality_mapping_from_dict({'low_dim': obs_keys})
 

@@ -12,15 +12,24 @@ copying benchmark scripts.
 
 ## What is included
 
-| Area | Purpose |
-| --- | --- |
-| Push-T | 2-D manipulation benchmark for diffusion, flow, streaming-SI, STEG, and CCG comparisons |
-| Robomimic | Low-dimensional `can`, `square`, and `lift` manipulation tasks |
+Envrionments for the policy to operate on:
+
+
+| Area      | Purpose                                                                                 |
+| ----------- | ----------------------------------------------------------------------------------------- |
+| Push-T    | 2-D manipulation benchmark for diffusion, flow, streaming-SI, STEG, and CCG comparisons |
+| Robomimic | Low-dimensional `can`, `square`, and `lift` manipulation tasks                          |
+
+Then, there are the algorithms that operate on these policies:
+
+
+| Area             | Purpose                                                                     |
+| ------------------ | ----------------------------------------------------------------------------- |
 | Flow-policy core | Sequence utilities, interpolation, normalization, and model building blocks |
-| CAR guidance | Conflict-Aware Additive Guidance for compositional reward gradients |
+| CAR guidance     | Conflict-Aware Additive Guidance for compositional reward gradients         |
 
 `ConflictAwareAdditiveGuidance` follows the public CAR-guidance implementation:
-<https://github.com/yuxuehui/CAR-guidance>. It computes the all-pairs
+[https://github.com/yuxuehui/CAR-guidance](https://github.com/yuxuehui/CAR-guidance). It computes the all-pairs
 `(1 - cosine) / 2` conflict score, applies the smootherstep conflict gate, and
 adds a learned/vector correction only where reward channels disagree. The full
 upstream Maze2D and ManiSkill2 experiment runners remain available in the
@@ -60,14 +69,14 @@ for Robomimic rendering.
 ## Assets and available tasks
 
 Download the released checkpoints from:
-<https://drive.google.com/drive/folders/18xWIlqNR2cQ2M6FI1H13l6uUxXMkDmC3>
+[https://drive.google.com/drive/folders/18xWIlqNR2cQ2M6FI1H13l6uUxXMkDmC3](https://drive.google.com/drive/folders/18xWIlqNR2cQ2M6FI1H13l6uUxXMkDmC3)
 
 Place Push-T assets under `Push-T/data/` and `Push-T/checkpoints/`, and
 robomimic assets under `Robomimic/datasets/` and `Robomimic/checkpoint/`.
 The public datasets are Push-T from
-<https://diffusion-policy.cs.columbia.edu/data/training/pusht.zip> and
+[https://diffusion-policy.cs.columbia.edu/data/training/pusht.zip](https://diffusion-policy.cs.columbia.edu/data/training/pusht.zip) and
 robomimic PH low-dimensional data from
-<https://huggingface.co/datasets/amandlek/robomimic/tree/main/v1.5>.
+[https://huggingface.co/datasets/amandlek/robomimic/tree/main/v1.5](https://huggingface.co/datasets/amandlek/robomimic/tree/main/v1.5).
 
 ```powershell
 gsp check-env
@@ -158,7 +167,7 @@ the same seeds and checkpoints.
 
 For full CAR Maze2D planning and ManiSkill2 point-cloud manipulation scripts,
 follow the upstream experiment READMEs:
-<https://github.com/yuxuehui/CAR-guidance>.
+[https://github.com/yuxuehui/CAR-guidance](https://github.com/yuxuehui/CAR-guidance).
 
 ## Development checks
 
