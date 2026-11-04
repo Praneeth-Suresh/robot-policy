@@ -226,28 +226,35 @@ baseline trajectory. Compare methods with matching tasks, seeds and conditions.
 Outputs are under `Robomimic/ccg_<task>_results/` and
 `Robomimic/steg_<task>_results/`.
 
-For one Can SI ODE rollout at seed 0, rather than the CLI's two ODE/SDE
-rollouts, run:
+For SI, set `COUNT`, `SEED`, and `TASK`; this runs exactly `COUNT` ODE
+rollouts with consecutive seeds. For one Can rollout at seed 0:
 
 ```bash
 cd Robomimic
-TASK=can python - <<'PYSI'
+COUNT=1 SEED=0 TASK=can python - <<'PYSI'
+import os
 import random
 import numpy as np
 import torch
 from inference.inference_si import wrapper, run_si_inference
-random.seed(0)
-np.random.seed(0)
-torch.manual_seed(0)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(0)
-wrapper.seed(0)
-run_si_inference(0.0, "SI seed 0", save_path="si_can_results/si_seed_0.gif")
+
+task = os.environ["TASK"]
+count = int(os.environ["COUNT"])
+assert count > 0
+for seed in range(int(os.environ["SEED"]), int(os.environ["SEED"]) + count):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    wrapper.seed(seed)
+    run_si_inference(0.0, f"SI seed {seed}",
+                     save_path=f"si_{task}_results/si_seed_{seed}.gif")
 PYSI
 cd ..
 ```
 
-Change the task and output directory together for Square or Lift. The SI CLI
+Change `TASK=can` to `square` or `lift` as needed. The SI CLI
 `gsp run mimic-infer-si --task can` instead runs both ODE and SDE once, and
 ignores `TOTAL_NEEDED`. Training entry points are `gsp run train-policy`,
 `train-dp`, and `train-critic` in `.venv`; use `mimic-train-policy` and
