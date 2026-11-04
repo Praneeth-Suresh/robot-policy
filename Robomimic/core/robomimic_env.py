@@ -1,46 +1,5 @@
 
 import os
-import sys
-import glob
-import ctypes
-import traceback
-
-os.environ.setdefault("MUJOCO_PY_FORCE_CPU", "1")
-os.environ.setdefault("MUJOCO_GL", "osmesa")
-os.environ.setdefault("PYOPENGL_PLATFORM", "osmesa")
-os.environ.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
-os.environ.setdefault("MESA_LOADER_DRIVER_OVERRIDE", "swrast")
-
-# Ensure LD_LIBRARY_PATH includes mujoco210/bin (otherwise mujoco_py raises Missing path)
-default_mujoco_bin = os.path.expanduser("~/.mujoco/mujoco210/bin")
-if os.path.isdir(default_mujoco_bin):
-    current_ld = os.environ.get("LD_LIBRARY_PATH", "")
-    ld_paths = [p for p in current_ld.split(":") if p]
-    if default_mujoco_bin not in ld_paths:
-        os.environ["LD_LIBRARY_PATH"] = default_mujoco_bin + (":" + current_ld if current_ld else "")
-
-# Dependency injection: preload OSMesa / libffi / GL with RTLD_GLOBAL (must run before import mujoco_py)
-_system_lib_path = "/usr/lib/x86_64-linux-gnu"
-
-def _dlopen_first(glob_pattern: str, label: str) -> None:
-    candidates = glob.glob(glob_pattern)
-    if not candidates:
-        print(f"{label} not found: {glob_pattern}")
-        return
-    target = candidates[0]
-    try:
-        rtld_now = getattr(os, "RTLD_NOW", 0)  # some systems lack os.RTLD_NOW
-        ctypes.CDLL(target, mode=ctypes.RTLD_GLOBAL | rtld_now)
-        print(f"{label} injected successfully: {target}")
-    except Exception as e:
-        print(f"{label} injection failed: {e} ({target})")
-
-_dlopen_first(os.path.join(_system_lib_path, "libffi.so.*"), "libffi")        # .7 / .8 depends on system
-_dlopen_first(os.path.join(_system_lib_path, "libOSMesa.so*"), "OSMesa")
-_dlopen_first(os.path.join(_system_lib_path, "libGL.so.1"), "libGL")
-_dlopen_first(os.path.join(default_mujoco_bin, "libglewosmesa.so*"), "libglewosmesa (mujoco210)")
-
-# ================= 1. Application imports (OSMesa backend locked at this point) =================
 from typing import List, Dict, Optional
 
 import numpy as np
@@ -48,8 +7,7 @@ import h5py
 import gym
 from gym.spaces import Box
 
-import mujoco_py
-from mujoco_py.builder import MujocoException  # used by wrapper.step(); was in removed EGL block
+from robosuite.utils import SimulationError
 import robomimic.utils.file_utils as FileUtils
 import robomimic.utils.env_utils as EnvUtils
 import robomimic.utils.obs_utils as ObsUtils
@@ -184,7 +142,7 @@ class RobomimicLowdimWrapper(gym.Env):
 
         try:
             raw_obs, reward, done, info = self.env.step(action)
-        except MujocoException as e:
+        except SimulationError as e:
             print(f"[MuJoCoException] step() failed: {e}")
             obs = self.reset()
             info = {"mujoco_exception": str(e)}
@@ -297,17 +255,9 @@ def build_env_and_wrapper(dataset_path: str, obs_keys: Optional[List[str]] = Non
     print(f"Environment name: {env_meta['env_name']}")
     print(f"Environment type: {env_meta['type']}")
 
-    # Robomimic 1.5.1 metadata includes newer robosuite options and nests the
-    # robot controller under ``body_parts``. Normalize it for robosuite 1.3.x,
-    # which is the API supported by robomimic 0.2 in this environment.
+    # Preserve the controller metadata from the dataset. Modern Robosuite
+    # consumes the nested ``body_parts`` format directly.
     env_kwargs = env_meta.get("env_kwargs", {})
-    env_kwargs.pop("lite_physics", None)
-    controller_configs = env_kwargs.get("controller_configs", {})
-    body_parts = controller_configs.get("body_parts", {})
-    if "right" in body_parts:
-        legacy_controller = dict(body_parts["right"])
-        legacy_controller.setdefault("type", "OSC_POSE")
-        env_kwargs["controller_configs"] = legacy_controller
 
     # Tell robomimic these keys are low_dim (required before building env)
     ObsUtils.initialize_obs_modality_mapping_from_dict({'low_dim': obs_keys})

@@ -24,14 +24,14 @@ silently changing data handling, model interfaces, or evaluation conditions.
 ## Primary Workflows
 
 1. **Prepare an environment**: use UV with Python 3.10 and the `pusht` or
-   `robomimic` extra, install `robosuite==1.3.2 --no-deps` in the isolated
-   Robomimic environment where needed, then run `gsp check-env`.
+   `robomimic` extra, then run `gsp check-env`. Robomimic uses modern
+   Robosuite and the official MuJoCo Python bindings.
 2. **Run Push-T experiments**: use `gsp run train-policy`,
    `train-dp`, `train-critic`, and the static/dynamic inference commands.
    Rendered trajectories go to `Push-T/outputs/`.
 3. **Run robomimic experiments**: choose `can`, `square`, or `lift` and use
    the `mimic-train-*` and `mimic-infer-*` commands. These runs require Linux
-   with MuJoCo 2.1 and OSMesa; they are not supported on this Windows host.
+   with modern MuJoCo and OSMesa; they are not supported on this Windows host.
 4. **Add reusable research code**: implement task-agnostic behavior in
    `guided_streaming_policy/core/`, expose a deliberate public API, register
    new CLI commands only when an experiment is runnable, and add focused tests.
@@ -90,8 +90,8 @@ datasets, checkpoints, rendered trajectories, or result dumps.
 The repository has four practical layers:
 
 1. **Simulation**: Push-T uses Pymunk physics and Pygame rendering behind a
-   Gym 0.26 API. Robomimic uses robosuite 1.3.2, MuJoCo 2.1 through
-   `mujoco-py`, and headless OSMesa rendering.
+   Gym 0.26 API. Robomimic uses modern Robosuite, the official MuJoCo Python
+   bindings, and headless OSMesa rendering.
 2. **Data**: Push-T demonstrations use a Zarr replay buffer. Robomimic
    low-dimensional demonstrations use HDF5 with absolute end-effector
    actions, saved states, observations, and episode boundaries.

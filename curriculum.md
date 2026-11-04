@@ -11,7 +11,7 @@ Everything is tied to this repository:
 
 | Layer | What this repo uses |
 | --- | --- |
-| Simulators | Push-T: Pymunk physics + Pygame rendering behind a `gym==0.26.2` API. Robomimic: robosuite 1.3.2 on MuJoCo 2.1 through `mujoco-py`, rendered offscreen with OSMesa. |
+| Simulators | Push-T: Pymunk physics + Pygame rendering behind a `gym==0.26.2` API. Robomimic: modern Robosuite on the official MuJoCo Python bindings, rendered offscreen with OSMesa. |
 | Data | Push-T: Zarr replay buffer (`pusht_cchi_v7_replay.zarr.zip`). Robomimic: HDF5 (`low_dim_abs.hdf5`, absolute end-effector actions). |
 | Training | Plain PyTorch loops, `diffusers` (`DDPMScheduler`, `EMAModel`, LR schedulers), 1-D conditional U-Net. |
 | Entry points | `gsp` CLI (`guided_streaming_policy/cli.py`) wrapping the legacy scripts in `Push-T/` and `Robomimic/`. |
@@ -47,7 +47,7 @@ look the way they do.
 | [MIT Missing Semester](https://missing.csail.mit.edu/): shell, shell tools, editors, version control, debugging and profiling | The day-to-day Linux skills every robotics codebase assumes. | 5 h |
 | [Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install) and [NVIDIA CUDA on WSL User Guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) | Ubuntu on Windows with your GPU visible inside it. The NVIDIA guide explains why you install the driver on Windows only, never inside WSL. | 1 h |
 | [VS Code: Developing in WSL](https://code.visualstudio.com/docs/remote/wsl) and [Python debugging in VS Code](https://code.visualstudio.com/docs/python/debugging) | Breakpoints inside training and rollout loops. You will use this more than any other tool. | 1 h |
-| [pip: Dependency Resolution](https://pip.pypa.io/en/stable/topics/dependency-resolution/) | Why the repo pins `numpy==1.26.4`, installs `robosuite==1.3.2 --no-deps`, and pins `cython==0.29.37` for `mujoco-py`. Read `environment.yml` and `pyproject.toml` comments after this. | 45 min |
+| [UV dependency resolution](https://docs.astral.sh/uv/concepts/projects/dependencies/) | Why the repo pins `numpy==1.26.4`, Robosuite 1.5.2, and the modern `mujoco` package. Read `environment.yml` and `pyproject.toml` after this. | 45 min |
 | [tmux: Getting Started](https://github.com/tmux/tmux/wiki/Getting-Started) | Keeping long training runs alive after you close the terminal. | 30 min |
 
 ### Lookup references
@@ -233,22 +233,20 @@ environment.
 | [robosuite: Modules overview](https://robosuite.ai/docs/modules/overview.html), [Environments](https://robosuite.ai/docs/modules/environments.html), [Controllers](https://robosuite.ai/docs/modules/controllers.html) | How MJCF models, robots, grippers, and objects are composed into a task, and how the OSC_POSE controller maps a 7-D action to torques at a fixed control frequency. Delta vs. absolute control is explained here. | 3 h |
 | [robosuite: Demonstrations](https://robosuite.ai/docs/algorithms/demonstrations.html) | How demonstrations are collected with teleop devices and stored as MuJoCo states plus actions. | 45 min |
 | [robomimic: Getting Started](https://robomimic.github.io/docs/introduction/getting_started.html) | Playback, training, and rollout scripts that ship with robomimic. | 1 h |
-| [mujoco-py README](https://github.com/openai/mujoco-py) | The deprecated binding that robosuite 1.3 uses: `LD_LIBRARY_PATH`, MuJoCo 2.1 binaries, and the Cython build on first import. | 30 min |
+| [MuJoCo Python bindings](https://mujoco.readthedocs.io/en/stable/python.html) | The official binding used by modern Robosuite; the PyPI package bundles the MuJoCo runtime. | 30 min |
 
-Version note: the robosuite docs now describe v1.5, which uses the official
-`mujoco` bindings. This repo is pinned to v1.3.2 to match the released
-datasets and checkpoints. The task, controller, and observation concepts are
-the same; the rendering and install details differ.
+Version note: this repo uses Robosuite 1.5.2 and the official `mujoco`
+bindings. Existing datasets and checkpoints retain their task, controller, and
+observation contracts, but replay validation is required because simulator
+versions can change trajectories.
 
 ### Build task
 
 Read `Robomimic/core/robomimic_env.py` top to bottom. It contains a lot of
 practical engineering:
 
-- The top of the file sets `MUJOCO_GL=osmesa` and preloads `libOSMesa`,
-  `libGL`, and `libglewosmesa` with `ctypes.CDLL(..., RTLD_GLOBAL)` before
-  importing `mujoco_py`. Work out why import order matters for headless
-  rendering.
+- The Robosuite binding selects the MuJoCo rendering backend from `MUJOCO_GL`;
+  work out why this must be configured before creating an offscreen context.
 - `resolve_control_delta` decides between delta and absolute control from the
   dataset metadata, then action statistics, then by replaying `demo_0` both
   ways and keeping the mode with the higher reward.
@@ -485,7 +483,7 @@ You know the methods; this table shows where each lives in the code.
 - Install and rendering errors: search closed issues for
   [robomimic](https://github.com/ARISE-Initiative/robomimic/issues),
   [robosuite](https://github.com/ARISE-Initiative/robosuite/issues),
-  [mujoco-py](https://github.com/openai/mujoco-py/issues), and
+  [MuJoCo](https://github.com/google-deepmind/mujoco/issues), and
   [Diffusion Policy](https://github.com/real-stanford/diffusion_policy/issues)
   first. Most errors are already answered there.
 - Physics looks wrong: check, in order, timestep and substeps, units and

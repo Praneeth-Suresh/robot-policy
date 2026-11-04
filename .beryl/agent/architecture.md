@@ -43,7 +43,7 @@ positions tracked by a PD controller with the current documented gains
 (`k_p = 100`, `k_v = 20`). Changes to timestep, substeps, damping, controller
 gains, or control frequency are experiment changes and must be recorded.
 
-Robomimic uses robosuite 1.3.2 with MuJoCo 2.1 through `mujoco-py`. Its
+Robomimic uses modern Robosuite with the official MuJoCo Python bindings. Its
 environment setup owns headless rendering, control-mode resolution, seeded
 state caching, action sanitization, and conversion of simulator failures into
 terminated episodes. Delta versus absolute OSC action mode must be established
@@ -77,17 +77,21 @@ benchmark scripts retain ownership of simulator-specific details.
   this research workspace.
 - 2026-11-04: Use UV with a committed lockfile as the primary Python
   environment workflow, while retaining the Conda file as a documented
-  fallback. Keep Robomimic in a separate UV environment because its legacy
-  MuJoCo stack should not constrain future simulator environments.
+  fallback. Keep Robomimic in a separate UV environment because its simulator
+  and rendering dependencies should not constrain future simulator environments.
+- 2026-11-04: Replace the legacy Robosuite 1.3 / MuJoCo 2.1 integration with
+  Robosuite 1.5.2, MuJoCo 3.4, and the current Robomimic source. Existing
+  datasets and checkpoints require replay validation because simulator
+  trajectories are not guaranteed to be numerically identical.
 
 ## Pressure Points
 
-- robomimic depends on MuJoCo 2.1, `mujoco-py`, OSMesa, and Linux-specific
-  runtime behavior; Windows validation is limited to source-level checks.
+- robomimic depends on modern MuJoCo, OSMesa, and Linux-specific runtime
+  behavior; Windows validation is limited to source-level checks.
 - Reproducibility depends on matching dataset versions, normalization stats,
   seeds, checkpoints, and guidance settings.
-- Legacy benchmark scripts vary in maturity; new reusable code should be
-  tested before being exposed through the CLI.
+- Benchmark scripts vary in maturity; new reusable code should be tested
+  before being exposed through the CLI.
 - Simulation-to-sim and simulation-to-real gaps are expected pressure points:
   recorded actions may not reproduce trajectories exactly, and real hardware
   adds observation age, camera/proprioception skew, and inference scheduling.

@@ -13,33 +13,24 @@ The recommended entrypoint is the repository root:
 From the repository root:
 
 ```bash
-conda env create -f environment.yml
-conda activate guided-streaming-policy
+uv venv .venv-robomimic --python 3.10
+UV_PROJECT_ENVIRONMENT=.venv-robomimic uv sync --extra robomimic
 gsp check-env
 ```
 
-If you prefer a pure pip flow:
+This uses Robosuite 1.5.2, the current Robomimic development package, and
+MuJoCo 3.4.0. The modern `mujoco` package bundles the runtime; no separate
+MuJoCo archive or `MUJOCO_PY_MUJOCO_PATH` is required. WSL/Linux still needs
+the rendering libraries:
 
 ```bash
-pip install -e ".[robomimic]"
+sudo apt update
+sudo apt install -y build-essential cmake patchelf \
+  libosmesa6-dev libgl1-mesa-dev libglew-dev libglfw3 libglfw3-dev
 ```
 
-`robosuite` cannot be resolved by pip on Python 3.10 (its metadata pins
-`numba<=0.53.1` / `free-mujoco-py==2.1.6`), so install it without dependencies
-after either path above. This matches the experiment environment, which runs
-`numba==0.63.1` / `mujoco-py==2.1.2.14`:
-
-```bash
-pip install robosuite==1.3.2 --no-deps
-```
-
-`robosuite` / `mujoco-py` also need the MuJoCo 2.1.0 binaries at runtime:
-
-```bash
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin
-```
-
-These are the two supported installation paths for the public repository.
+Existing datasets and checkpoints must be replay-validated because modern
+MuJoCo/controller behavior may differ from the legacy 2.1 stack.
 For benchmark compatibility details, see
 [Reproducibility Notes](../docs/reproducibility.md).
 

@@ -29,19 +29,6 @@ classifiers = [
 ]
 dependencies = []
 
-# Both extras are pinned to the experiment environment (`streaming-flow-policy`)
-# and share numpy<2, so they are co-installable in a single environment:
-#   uv sync --extra pusht --extra robomimic
-#
-# NOTE: robosuite==1.3.2 is intentionally NOT listed below. Its metadata pins
-# numba<=0.53.1 and free-mujoco-py==2.1.6, neither installable on Python 3.10,
-# so pip cannot resolve it. The working environment has numba==0.63.1 and
-# mujoco-py==2.1.2.14, i.e. robosuite was installed with --no-deps. Install it
-# the same way after the extras:
-#   uv pip install --no-deps robosuite==1.3.2
-#
-# cython is pinned to 0.29.37 because mujoco-py==2.1.2.14 compiles its
-# Cython extension at first import and does not build under Cython 3.x.
 [project.optional-dependencies]
 pusht = [
   "diffusers==0.36.0",
@@ -68,13 +55,11 @@ robomimic = [
   "llvmlite==0.46.0",
   "matplotlib==3.10.8",
   "mujoco==3.4.0",
-  "cython==0.29.37",
-  "mujoco-py==2.1.2.14",
-  "numba==0.63.1",
   "numpy==1.26.4",
   "opencv-python==4.9.0.80",
   "pandas==2.3.3",
-  "robomimic==0.2.0",
+  "robomimic @ git+https://github.com/ARISE-Initiative/robomimic.git@d309eaecc18acf4152a830a895a6984b8ac71b05",
+  "robosuite==1.5.2",
   "scipy==1.15.3",
   "torch==2.9.1",
   "torchvision==0.24.1",
@@ -86,3 +71,12 @@ gsp = "guided_streaming_policy.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["guided_streaming_policy*"]
+
+[tool.uv]
+# The current Robomimic source declares older diffusers and huggingface-hub
+# pins that conflict with this project's tested model stack. Its APIs used here
+# remain compatible with the newer versions, so keep the shared versions.
+override-dependencies = [
+  "diffusers==0.36.0",
+  "huggingface-hub==1.33.0",
+]

@@ -47,7 +47,7 @@ published.
 ## Setup
 
 UV is the supported environment manager. Use WSL2/Linux for Robomimic,
-MuJoCo 2.1, and GPU-based simulation. Keep the checkout in the WSL
+modern MuJoCo, and GPU-based simulation. Keep the checkout in the WSL
 filesystem rather than under `/mnt/c`. The released environment uses Python
 3.10. Install UV first if it is not already available:
 
@@ -70,20 +70,19 @@ project environment from `pyproject.toml` and `uv.lock`.
 
 ### Robomimic environment
 
-Robomimic is kept in a separate environment because its legacy simulator
-dependencies are not compatible with every modern robotics stack:
+Robomimic uses the modern Robosuite/MuJoCo stack:
 
 ```bash
 uv venv .venv-robomimic --python 3.10
 source .venv-robomimic/bin/activate
 UV_PROJECT_ENVIRONMENT=.venv-robomimic uv sync --extra robomimic
-uv pip install --no-deps robosuite==1.3.2
 gsp check-env
 ```
 
-Robomimic additionally requires `mujoco-py==2.1.2.14`, MuJoCo 2.1.0, and
-Linux OSMesa/GL libraries. Install the system prerequisites before building
-`mujoco-py`:
+This uses Robosuite 1.5.2, the current Robomimic development package, and
+MuJoCo 3.4.0. The Python package bundles the MuJoCo runtime; no separate
+MuJoCo archive or `MUJOCO_PY_MUJOCO_PATH` is required. Install Linux rendering
+libraries:
 
 ```bash
 sudo apt update
@@ -91,14 +90,9 @@ sudo apt install -y build-essential cmake patchelf \
   libosmesa6-dev libgl1-mesa-dev libglew-dev libglfw3 libglfw3-dev
 ```
 
-Place MuJoCo 2.1.0 under `~/.mujoco/mujoco210/` and add its libraries:
-
-```bash
-echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin' >> ~/.bashrc
-source ~/.bashrc
-```
-
-Robomimic rendering is not supported on the Windows host; use WSL2/Linux.
+Robomimic rendering is supported in WSL2/Linux, but existing datasets and
+checkpoints must be replay-validated because modern MuJoCo/controller behavior
+may differ from the legacy 2.1 stack.
 
 ## Assets and available tasks
 

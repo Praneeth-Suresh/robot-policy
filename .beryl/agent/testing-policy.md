@@ -11,7 +11,7 @@
 | Environment check | `gsp check-env` | available after install | Dependency and asset readiness |
 | Lint | not configured | unavailable | Do not invent a formatter or linter |
 | Typecheck | not configured | unavailable | Python project has no typecheck command |
-| Robomimic runtime | Linux + MuJoCo 2.1 + OSMesa | platform-dependent | Not runnable on this Windows host |
+| Robomimic runtime | Linux + modern MuJoCo + OSMesa | platform-dependent | Not runnable on this Windows host |
 
 ## Default Loop
 

@@ -6,17 +6,8 @@ dependencies:
   - python=3.10
   - pip
   - pip:
-      # Single unified environment for both benchmarks. Versions are pinned in
-      # pyproject.toml ([pusht] + [robomimic] extras), aligned to the experiment
-      # environment (streaming-flow-policy); both share numpy<2.
-      - -e ".[pusht,robomimic]"
-# IMPORTANT: robosuite (needed by Robomimic) is NOT installed above. Its
-# metadata pins numba<=0.53.1 / free-mujoco-py==2.1.6, which pip cannot resolve
-# on Python 3.10. After creating and activating this env, install it without
-# dependencies (matches the original streaming-flow-policy setup):
-#
-#   conda activate robot-policy
-#   pip install robosuite==1.3.2 --no-deps
-#
-# robosuite/mujoco-py also need the MuJoCo 2.1.0 binaries at runtime:
-#   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin
+      # Legacy fallback for Push-T only. Use uv sync --extra robomimic for
+      # the modern Robosuite/MuJoCo environment.
+      - -e ".[pusht]"
+# The supported workflow uses pyproject.toml and uv.lock. This file is retained
+# only as a legacy Conda fallback for the Push-T dependencies.
