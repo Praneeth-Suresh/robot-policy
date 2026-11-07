@@ -1,4 +1,5 @@
 import os
+os.environ['GSP_INFERENCE'] = '1'
 import random
 import numpy as np
 import torch
@@ -19,7 +20,7 @@ dataset_path  = _env.dataset_path
 CONTROL_DELTA = _env.control_delta
 
 from core.config import STEG_HP, STEG_RESULTS_DIR
-from core.dataset import dataset
+from core.inference_context import dataset
 from core.flow_policy import gamma_t_si, d_gamma_dt_si
 from core.my_utils import (
     _infer_task_name_from_dataset_path,

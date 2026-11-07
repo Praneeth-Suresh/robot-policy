@@ -95,3 +95,5 @@ benchmark scripts retain ownership of simulator-specific details.
 - Simulation-to-sim and simulation-to-real gaps are expected pressure points:
   recorded actions may not reproduce trajectories exactly, and real hardware
   adds observation age, camera/proprioception skew, and inference scheduling.
+
+- Robomimic inference caches dataset normalization statistics beside the dataset; training retains the full dataset loader. Cache identity includes dataset metadata and preprocessing version.

@@ -1,10 +1,15 @@
+import os
 import torch
 from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
 
 from core.config import *  # noqa: F401,F403  (device / action_dim / obs_horizon / pred_horizon, etc.)
 from core.models import ConditionalUnet1D
-from core.dataset import dataset, dataloader
+if os.environ.get('GSP_INFERENCE') == '1':
+    from core.inference_context import dataset
+    dataloader = range((dataset.sample_count + 63) // 64)
+else:
+    from core.dataset import dataset, dataloader
 
 
 

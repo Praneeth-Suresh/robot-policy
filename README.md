@@ -139,128 +139,64 @@ scripts' defaults; `gsp run` does not accept a general trial-count or seed
 option. Methods should be compared with the same dataset, seed and obstacle
 condition. Results, checkpoints, and datasets remain outside Git.
 
-### Push-T: choose count, method and condition
+### Push-T trials
 
-The default `gsp run infer-static-*` and `gsp run infer-dynamic-*` commands run
-50 seeds; static batches use multiple obstacle positions per seed. For exact
-control, run this script from the repository root. Set `METHOD` to `naive`,
-`ccg`, `steg`, `dp`, or `flow`; `CONDITION` to `static` or `dynamic`; and
-`COUNT` and `SEED` to the desired number of seeds and starting seed. This
-example requests one static seed, one fixed obstacle, and a GIF:
+From the repository root, set the variables and run the saved script:
 
 ```bash
-source .venv/bin/activate
-export SDL_VIDEODRIVER=dummy
-export METHOD=naive CONDITION=static COUNT=1 SEED=0
-cd Push-T
-python - <<'PYTRIAL'
-import importlib, os
-from pathlib import Path
-import imageio
-
-method = os.environ["METHOD"]
-condition = os.environ["CONDITION"]
-count = int(os.environ["COUNT"])
-seed = int(os.environ["SEED"])
-static = {
-    "naive": ("inference_naive", "run_naive_inference", {"max_guidance_scale": 6.0}),
-    "ccg": ("inference_ccg", "run_ccg_inference", {"max_guidance_scale": 4.0}),
-    "steg": ("inference_steg", "run_steg_sde_inference", {}),
-    "dp": ("inference_dp_gconva", "run_gconv_a_dp_inference", {}),
-    "flow": ("inference_fp_gconva", "run_gcov_a_fp_inference", {}),
-}
-dynamic = {
-    "naive": ("inference_naive_dynamic", 7.0),
-    "ccg": ("inference_ccg_dynamic", 4.0),
-    "steg": ("inference_steg_dynamic", 7.0),
-    "dp": ("inference_dp_gconva_dynamic", 15.0),
-    "flow": ("inference_fp_gconva_dynamic", 0.7),
-}
-assert count > 0 and condition in ("static", "dynamic")
-out = Path("outputs/one-trial") / condition / method
-out.mkdir(parents=True, exist_ok=True)
-for current_seed in range(seed, seed + count):
-    if condition == "static":
-        module, name, options = static[method]
-        run = getattr(importlib.import_module("inference.static." + module), name)
-        metrics, _ = run(seed=current_seed, fixed_obstacle_pos=[-0.3, -0.5],
-                         save_gif=True, output_dir=out, **options)
-    else:
-        module, scale = dynamic[method]
-        run = importlib.import_module("inference.dynamic." + module).run_guided_inference_visualized
-        images, metrics = run(obstacle_mode=1, start_obs_pos_norm=[0.5, 0.5],
-                              max_guidance_scale=scale, seed=current_seed)
-        if images:
-            imageio.mimsave(out / f"seed_{current_seed}_mode_1.gif", images, fps=20, loop=0)
-    print("RESULT", condition, method, current_seed, metrics, flush=True)
-PYTRIAL
-cd ..
+METHOD=naive CONDITION=static COUNT=1 SEED=0 .venv/bin/python Push-T/run_trial.py
 ```
 
-For a moving-obstacle trial, change `CONDITION=dynamic SEED=500`. Dynamic mode
-1 moves sinusoidally across the baseline trajectory; other script modes are
-0 (static), 2 (intercept), and 3 (chase). The static example uses normalized
-obstacle position `[-0.3, -0.5]`; edit `fixed_obstacle_pos` for a different
-condition. A static call performs baseline and guided rollouts, so one seed is
-not necessarily one simulator episode. Outputs go to
-`Push-T/outputs/one-trial/<condition>/<method>/`. Scales above match the
-selected script defaults or batch settings; report them with comparisons.
+| Variable | Values | Default | Meaning |
+| --- | --- | --- | --- |
+| `METHOD` | `naive`, `ccg`, `steg`, `dp`, `flow` | `naive` | Policy and guidance method |
+| `CONDITION` | `static`, `dynamic` | `static` | Obstacle condition |
+| `COUNT` | Positive integer | `1` | Number of consecutive seeds |
+| `SEED` | Nonnegative integer | `0` | First seed |
+| `SDL_VIDEODRIVER` | SDL driver name, e.g. `dummy` | `dummy` | Headless rendering driver |
 
-### Robomimic: choose task, method and count
+The static condition uses obstacle position `[-0.3, -0.5]`; each seed runs
+baseline and guided rollouts. Dynamic mode 1 moves an obstacle sinusoidally;
+for the previous example use `CONDITION=dynamic SEED=500`. The script prints
+metrics and saves GIFs under `Push-T/outputs/one-trial/<condition>/<method>/`.
+Existing files with the same names may be replaced. Guidance scales match the
+previous README example; compare methods with matching seeds and conditions.
+
+### Robomimic trials
+
+From the repository root, run for example:
 
 ```bash
-source .venv-robomimic/bin/activate
-export MUJOCO_GL=osmesa
-# One requested valid CCG or STEG trial, with GIFs:
-TOTAL_NEEDED=1 gsp run mimic-infer-ccg --task can
-TOTAL_NEEDED=1 RENDER_GIFS=1 gsp run mimic-infer-steg --task can
+METHOD=si TASK=can COUNT=1 SEED=0 .venv-robomimic/bin/python Robomimic/run_trial.py
+METHOD=steg TASK=can COUNT=1 RENDER_GIFS=1 .venv-robomimic/bin/python Robomimic/run_trial.py
 ```
 
-Use `--task square` to select Square, or `--task lift` after providing its
-missing policy and critic. `TOTAL_NEEDED` controls the number of **valid**
-trials: the scripts start with seed 1 and may try more seeds when an
-obstacle-free baseline fails, so `TOTAL_NEEDED=1` does not bound the number of
-attempts. CCG saves GIFs by default and does not read `RENDER_GIFS`; STEG
-reads `RENDER_GIFS` (0 or 1). They place an obstacle based on the successful
-baseline trajectory. Compare methods with matching tasks, seeds and conditions.
-Outputs are under `Robomimic/ccg_<task>_results/` and
-`Robomimic/steg_<task>_results/`.
+| Variable | Values | Default | Meaning |
+| --- | --- | --- | --- |
+| `METHOD` | `si`, `ccg`, `steg` | `si` | Inference method |
+| `TASK` | `can`, `square`, `lift` | `can` | Manipulation task |
+| `COUNT` | Positive integer | `1` | SI rollouts or valid CCG/STEG trials |
+| `SEED` | Nonnegative integer | `0` | First SI seed; CCG/STEG start at seed 1 |
+| `RENDER_GIFS` | `0`, `1` | `1` | STEG GIF rendering; CCG and SI save GIFs independently |
+| `MUJOCO_GL` | MuJoCo rendering backend, e.g. `osmesa` | `osmesa` | Rendering backend |
 
-For SI, set `COUNT`, `SEED`, and `TASK`; this runs exactly `COUNT` ODE
-rollouts with consecutive seeds. For one Can rollout at seed 0:
+Robomimic inference saves normalization statistics in a `.gsp-cache/` directory
+beside the selected dataset. The first run computes them; later runs reuse them
+without building the training dataset. Dataset file changes or a preprocessing
+version change trigger a rebuild. To force a rebuild, remove that task's
+`.gsp-cache/` directory. Simulator calibration and model loading still occur
+on each invocation. Training continues to load the full dataset.
 
-```bash
-cd Robomimic
-COUNT=1 SEED=0 TASK=can python - <<'PYSI'
-import os
-import random
-import numpy as np
-import torch
-from inference.inference_si import wrapper, run_si_inference
+SI runs exactly `COUNT` consecutive seeds and writes to
+`Robomimic/si_<task>_results/`. CCG and STEG may try additional seeds until
+`COUNT` baseline-valid trials are found; they write to
+`Robomimic/ccg_<task>_results/` and `Robomimic/steg_<task>_results/`.
+Existing files with the same names may be replaced. Lift requires its missing
+policy checkpoint and, for CCG, a critic checkpoint. Existing datasets and
+checkpoints require replay validation on modern MuJoCo as noted above.
 
-task = os.environ["TASK"]
-count = int(os.environ["COUNT"])
-assert count > 0
-for seed in range(int(os.environ["SEED"]), int(os.environ["SEED"]) + count):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    wrapper.seed(seed)
-    run_si_inference(0.0, f"SI seed {seed}",
-                     save_path=f"si_{task}_results/si_seed_{seed}.gif")
-PYSI
-cd ..
-```
-
-Change `TASK=can` to `square` or `lift` as needed. The SI CLI
-`gsp run mimic-infer-si --task can` instead runs both ODE and SDE once, and
-ignores `TOTAL_NEEDED`. Training entry points are `gsp run train-policy`,
-`train-dp`, and `train-critic` in `.venv`; use `mimic-train-policy` and
-`mimic-train-critic` with `--task can|square|lift` in `.venv-robomimic`.
-Training may overwrite or resume checkpoint files; preserve the release files
-before starting a new training run.
+Training entry points remain available via `gsp run`; preserve release
+checkpoints before training because training may overwrite or resume them.
 
 ## Add a new robot flow policy
 

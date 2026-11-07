@@ -1,4 +1,5 @@
 import os
+os.environ['GSP_INFERENCE'] = '1'
 import math
 import collections
 
@@ -13,7 +14,7 @@ from core.robomimic_env import get_env
 _env = get_env()
 wrapper       = _env.wrapper
 CONTROL_DELTA = _env.control_delta
-from core.dataset import dataset
+from core.inference_context import dataset
 from core.flow_policy import (
     si_velocity_net,
     si_denoiser_net,

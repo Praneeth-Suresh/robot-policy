@@ -195,25 +195,35 @@ pred_horizon = 16    # predict 16 future steps
 obs_horizon = 2      # observe past 2 steps
 action_horizon = 8   # unused in dataset; used at inference
 
-# 1. Instantiate Dataset
-dataset = RobomimicDataset(
-    dataset_path=DATASET_PATH, # from core.config, derived from TASK
-    obs_keys=[
-        'object', 
-        'robot0_eef_pos', 
-        'robot0_eef_quat', 
-        'robot0_gripper_qpos'
-    ],
-    pred_horizon=pred_horizon,
-    obs_horizon=obs_horizon,
-    action_horizon=action_horizon
-)
+def __getattr__(name):
+    if name not in ("dataset", "dataloader"):
+        raise AttributeError(name)
+    if "dataset" not in globals():
+        _initialize_training_data()
+    return globals()[name]
 
-# 2. Instantiate DataLoader
-dataloader = DataLoader(
-    dataset, 
-    batch_size=64, 
-    shuffle=True, 
-    num_workers=0, # 0 is safer for local debugging (avoids multiprocessing issues)
-    pin_memory=True
-)
+
+def _initialize_training_data():
+    global dataset, dataloader
+    # 1. Instantiate Dataset
+    dataset = RobomimicDataset(
+        dataset_path=DATASET_PATH, # from core.config, derived from TASK
+        obs_keys=[
+            'object', 
+            'robot0_eef_pos', 
+            'robot0_eef_quat', 
+            'robot0_gripper_qpos'
+        ],
+        pred_horizon=pred_horizon,
+        obs_horizon=obs_horizon,
+        action_horizon=action_horizon
+    )
+
+    # 2. Instantiate DataLoader
+    dataloader = DataLoader(
+        dataset, 
+        batch_size=64, 
+        shuffle=True, 
+        num_workers=0, # 0 is safer for local debugging (avoids multiprocessing issues)
+        pin_memory=True
+    )

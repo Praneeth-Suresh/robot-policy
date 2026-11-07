@@ -1,4 +1,5 @@
 import os
+os.environ['GSP_INFERENCE'] = '1'
 import random
 import numpy as np
 import torch
@@ -15,7 +16,7 @@ _env = get_env()
 wrapper        = _env.wrapper
 dataset_path   = _env.dataset_path
 CONTROL_DELTA  = _env.control_delta
-from core.dataset import dataset
+from core.inference_context import dataset
 from core.flow_policy import gamma_t_si, d_gamma_dt_si
 from core.critic import CollisionPredictionCritic
 from core.my_utils import (

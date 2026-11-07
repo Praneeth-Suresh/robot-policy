@@ -25,6 +25,7 @@ Robomimic/datasets/
 Robomimic/checkpoint/
 Robomimic/ccg_*_results/
 Robomimic/steg_*_results/
+Robomimic/si_*_results/
 artifacts/
 artifacts2/
 docs/figures/
