@@ -1,48 +1,57 @@
 # Robot Policy
 
-An open research workspace for general robot-policy experiments with
-diffusion, flow-matching, and stochastic-interpolant policies. The repository
-currently contains reproducible Push-T and robomimic baselines, plus reusable
-guidance components for testing new robotics ideas.
+A research workspace for studying how manipulation policies can adapt at
+inference time. It brings together diffusion, flow-matching, and streaming
+stochastic-interpolant policies with guidance methods that adjust their actions.
 
-The original Guided Streaming Stochastic Interpolant Policy (SSIP/GSSIP)
-experiments remain available through the `gsp` CLI. New experiments should
-reuse the task-agnostic code under `guided_streaming_policy/core/` rather than
-copying benchmark scripts.
+[Try the CLI](#try-it-without-downloads) · [Inspect a guidance result](#inspect-the-car-guidance-smoke-test) · [Run simulator benchmarks](#run-trials)
 
-## What is included
+## What is here
 
-Envrionments for the policy to operate on:
+| Scope | What you can find |
+| --- | --- |
+| Baselines and benchmarks | Push-T scripts for diffusion, flow, streaming stochastic interpolants, STEG, and CCG; low-dimensional robomimic scripts for Can, Square, and Lift. The [benchmark setup](#setup-and-assets) documents required assets and known replay limits. |
+| Implementation in this workspace | A common experiment CLI, reusable [policy components](guided_streaming_policy/core/), and a [CAR adapter](guided_streaming_policy/core/car_guidance.py) based on the [upstream Conflict-Aware Additive Guidance implementation](https://github.com/yuxuehui/CAR-guidance). The upstream repository hosts the full Maze2D and ManiSkill2 experiments. |
+| Research in progress | Comparing guidance methods on matched tasks and seeds, and testing when composing rewards improves adaptation. The smoke check below is component evidence, not a benchmark or a claim of improved robot performance. |
 
+## Try it without downloads
 
-| Area      | Purpose                                                                                 |
-| ----------- | ----------------------------------------------------------------------------------------- |
-| Push-T    | 2-D manipulation benchmark for diffusion, flow, streaming-SI, STEG, and CCG comparisons |
-| Robomimic | Low-dimensional `can`, `square`, and `lift` manipulation tasks                          |
+Run from the repository root with Python 3.10 or newer. This verifies the
+command-to-benchmark wiring without installing packages or loading checkpoints:
 
-Then, there are the algorithms that operate on these policies:
+```bash
+python -m guided_streaming_policy list-tasks
+python -m guided_streaming_policy run infer-static-naive --dry-run
+```
 
+The first command lists available tasks, including `infer-static-naive` and
+`mimic-infer-si`. The dry run prints the working directory (the repository's
+`Push-T` folder) and the resolved Python command, ending in
+`-m inference.static.inference_naive`. It does not start a simulator.
 
-| Area             | Purpose                                                                     |
-| ------------------ | ----------------------------------------------------------------------------- |
-| Flow-policy core | Sequence utilities, interpolation, normalization, and model building blocks |
-| CAR guidance     | Conflict-Aware Additive Guidance for compositional reward gradients         |
+## Inspect the CAR guidance smoke test
 
-`ConflictAwareAdditiveGuidance` follows the public CAR-guidance implementation:
-[https://github.com/yuxuehui/CAR-guidance](https://github.com/yuxuehui/CAR-guidance). It computes the all-pairs
-`(1 - cosine) / 2` conflict score, applies the smootherstep conflict gate, and
-adds a learned/vector correction only where reward channels disagree. The full
-upstream Maze2D and ManiSkill2 experiment runners remain available in the
-upstream repository; this project provides the reusable adapter for applying
-the method to the policies here or to a new robot task.
+In a Python environment with [PyTorch](https://pytorch.org/get-started/locally/)
+installed (a CPU build is enough), run the existing component tests from the
+repository root. This requires no simulator, dataset, or model checkpoint.
 
-### CAR smoke-test result
+```bash
+python -m unittest discover -s tests -p test_car_guidance.py -v
+```
 
-The local CAR component smoke test validates aligned and opposed reward
-gradients: aligned rewards receive no correction, while opposed rewards receive
-full correction after crossing the default conflict gate. Generated plots and
-trajectory images are local-only result artifacts and are intentionally not
-published.
+Expect three passing tests and **no skips**; without PyTorch the tests are
+skipped. The [test fixture](tests/test_car_guidance.py) compares aligned and
+opposed unit gradients. It uses a base velocity filled with 1 and a synthetic
+correction filled with 2; the default gate determines how much correction is
+added.
+
+| Synthetic case | Reward gradients | Conflict score | Correction weight | Each output velocity entry |
+| --- | --- | ---: | ---: | ---: |
+| Aligned | `[1, 0]`, `[1, 0]` | 0 | 0 | 1 |
+| Opposed | `[1, 0]`, `[-1, 0]` | 1 | 1 | 3 |
+
+These values come from the unit-test fixture and gate definition. They do not
+measure task success or show that CAR outperforms a baseline.
 
 ## Setup and assets
 
@@ -255,7 +264,7 @@ follow the upstream experiment READMEs:
 ## Development checks
 
 ```bash
-uv run python -m unittest discover -v
+uv run python -m unittest discover -s tests -v
 uv run python -m compileall -q guided_streaming_policy Push-T tests
 ```
 
