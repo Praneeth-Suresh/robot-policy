@@ -8,8 +8,8 @@ from guided_streaming_policy.lab.adapters import find_policy, resolve_policy_con
 from guided_streaming_policy.lab.tasks.registry import get_task
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-COMPARISON = REPO_ROOT / "lab" / "comparisons" / "pusht_guidance_v1.json"
-GATE = REPO_ROOT / "lab" / "gates" / "pusht_v1.json"
+COMPARISON = REPO_ROOT / "lab/comparisons/pusht_guidance_v1.json"
+GATE = REPO_ROOT / "lab/gates/pusht_v1.json"
 
 
 class CheckedInConfigTests(unittest.TestCase):
@@ -24,8 +24,10 @@ class CheckedInConfigTests(unittest.TestCase):
     def test_gate_loads_and_requires_every_declared_pair(self) -> None:
         gate = schema.load_gate_config(GATE)
         comparison = schema.load_comparison_config(COMPARISON)
-        self.assertEqual(gate.min_completed_pairs, len(comparison.seeds) * len(comparison.conditions))
-        self.assertEqual({rule.id for rule in gate.rules}, {"success_not_worse", "separation_proxy"})
+        cells = len(comparison.seeds) * len(comparison.conditions)
+        self.assertEqual(gate.min_completed_pairs, cells)
+        rule_ids = {rule.id for rule in gate.rules}
+        self.assertEqual(rule_ids, {"success_not_worse", "separation_proxy"})
 
 
 if __name__ == "__main__":
