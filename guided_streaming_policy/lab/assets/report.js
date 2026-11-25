@@ -6,7 +6,7 @@
   const SVG_NS = "http://www.w3.org/2000/svg";
   const PLOT_WIDTH = 720, PLOT_HEIGHT = 180, PLOT_PAD = 32;
   const MARKER_RADIUS = 4, RADIANS_TO_DEGREES = 180 / Math.PI;
-  const EXTENT_PADDING_FRACTION = 0.08, MIN_SPAN = 1, READ_DECIMALS = 3;
+  const EXTENT_PADDING_FRACTION = 0.08, MIN_SPAN = 1, DISPLAY_DECIMALS = 2;
   const select = document.getElementById("pair-select");
   const slider = document.getElementById("step-slider");
   let pair = pairs[0], index = 0;
@@ -173,7 +173,7 @@
   }
 
   function readNumber(value) {
-    return finite(value) ? String(Number(value.toFixed(READ_DECIMALS))) : "not collected";
+    return finite(value) ? value.toFixed(DISPLAY_DECIMALS) : "not collected";
   }
 
   function plotScale(series, threshold) {
@@ -223,7 +223,7 @@
       y2: PLOT_HEIGHT - PLOT_PAD, class: "cursor"}));
     svg.append(svgNode("text", {x: 0, y: PLOT_PAD}, readNumber(scale.high)));
     svg.append(svgNode("text", {x: 0, y: PLOT_HEIGHT - PLOT_PAD}, readNumber(scale.low)));
-    svg.append(svgNode("text", {x: PLOT_PAD, y: PLOT_HEIGHT - 4}, `${scale.start} ${pair.time_unit}`));
+    svg.append(svgNode("text", {x: PLOT_PAD, y: PLOT_HEIGHT - 4}, `${readNumber(scale.start)} ${pair.time_unit}`));
     svg.append(svgNode("text", {x: PLOT_WIDTH - 90, y: PLOT_HEIGHT - 4},
       `${readNumber(scale.end)} ${pair.time_unit}`));
     if (markViolation) firstViolation(svg, scale, series[1]);
@@ -231,7 +231,7 @@
     legend.textContent = ["baseline", "candidate"].map((side, line) =>
       `${side} (${line ? "dashed" : "solid"}): ` +
       readNumber(series[line][stepIndex(pair[side], currentStep())])).join(" · ") +
-      (finite(threshold) ? ` · threshold ${threshold}` : "");
+      (finite(threshold) ? ` · threshold ${readNumber(threshold)}` : "");
     section.append(heading, svg, legend);
     document.getElementById("signal-plots").append(section);
   }
@@ -239,9 +239,11 @@
   function plots() {
     document.getElementById("signal-plots").replaceChildren();
     const rule = pair.separation;
-    const detail = rule ? ` (${rule.signal || "signal not recorded"}; ${rule.units}; tolerance ${rule.tolerance}; ${rule.signal_source})` : " (no gate rule)";
-    plot("Separation proxy" + detail, [separation(pair.baseline), separation(pair.candidate)],
-      rule && rule.threshold, true);
+    if (rule) {
+      const detail = ` (${rule.signal}; ${rule.units}; tolerance ${readNumber(rule.tolerance)})`;
+      plot("Separation proxy" + detail, [separation(pair.baseline), separation(pair.candidate)],
+        rule.threshold, true);
+    }
     const actionUnits = Object.values(pair.baseline.action_schema.fields).map(field => field.units);
     plot(`Action step size (${[...new Set(actionUnits)].join(", ")})`,
       [actionSize(pair.baseline), actionSize(pair.candidate)]);

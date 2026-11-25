@@ -233,6 +233,7 @@ def _separation_rule(
         losses=losses,
         ties=len(differences) - wins - losses,
         tolerance=rule.tolerance,
+        signal=rule.signal,
         coverage=min((item.coverage for item in candidate), default=0.0),
     )
     verdicts = [item.verdict for item in candidate]

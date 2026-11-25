@@ -55,6 +55,7 @@ class GateTests(unittest.TestCase):
         self.assert_exit(result, 1, "REGRESSION")
         self.assertEqual(result["rules"][1]["id"], "separation_proxy")
         self.assertEqual(result["rules"][1]["verdict"], "fail")
+        self.assertEqual(result["rules"][1]["signal"], "action_executed.target")
         regression = result["regressions"][0]
         self.assertEqual(regression["key"], {"task": "toy", "condition": "c1", "seed": 1})
         self.assertEqual(regression["category"], "constraint_fail")
@@ -119,6 +120,7 @@ class GateTests(unittest.TestCase):
                 self.assert_exit(result, 2, "BLOCKED")
                 rule = result["rules"][1]
                 self.assertEqual(rule["verdict"], "unknown")
+                self.assertEqual(rule["signal"], "action_executed.target")
                 text = {
                     "missing": "action_executed.target",
                     "coverage": "coverage",

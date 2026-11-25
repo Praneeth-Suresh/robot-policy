@@ -1,7 +1,6 @@
 """Offline presentation of recorded comparison/gate evidence; plots never decide verdicts.
 
-When gate results omit signal, the first declared 2-D executed action is used
-only for a labelled display fallback; it does not reconstruct gate configuration.
+Separation plots use only the signal recorded in gate rule evidence.
 Trace hashes are deliberately not checked here. Display telemetry is rounded to
 REPORT_DECIMALS; gate and comparison evidence remains unchanged. Assets ship as
 package data. Only schema contracts cross the presentation boundary.
@@ -20,9 +19,10 @@ from urllib.parse import quote, urlsplit
 
 from guided_streaming_policy.lab import schema
 
-__all__ = ["REPORT_DECIMALS", "load_result", "render_report"]
+__all__ = ["DISPLAY_DECIMALS", "REPORT_DECIMALS", "load_result", "render_report"]
 
 REPORT_DECIMALS = 3
+DISPLAY_DECIMALS = 2
 _HASH_PREFIX_CHARACTERS = 12
 _VARIANTS = ("baseline", "candidate")
 _STATUSES = {"PASS": "pass", "REGRESSION": "fail", "BLOCKED": "unknown"}
@@ -203,17 +203,8 @@ def _trace_data(compare: dict[str, Any], gate: dict[str, Any] | None, base: Path
         pairs.append({"key": _key(pair), **sides, "geometry": first["geometry"],
                       "time_unit": first["timebase"]["unit"],
                       "regression": regressions.get(_key(pair)),
-                      "separation": _display_rule(separation, first)})
+                      "separation": separation})
     return {"pairs": pairs, "regressions": list(regressions.values()), "synthetic": synthetic}
-
-
-def _display_rule(rule: dict[str, Any] | None, run: dict[str, Any]) -> dict[str, Any] | None:
-    if rule is None:
-        return None
-    names = [name for name, field in sorted(run["action_schema"]["fields"].items())
-             if field["shape"] == [2]]
-    return {**rule, "signal": f"action_executed.{names[0]}" if names else None,
-            "signal_source": "display fallback: gate result omits signal"}
 
 
 def _asset(name: str) -> str:
@@ -260,20 +251,24 @@ def _coverage(compare: dict[str, Any], gate: dict[str, Any] | None) -> str:
     return f'<section><h2>Coverage</h2><p>{counts}</p>{limits}<ul>{missing}{blocked}</ul></section>'
 
 
+def _display(value: Any) -> str:
+    return _e(f"{value:.{DISPLAY_DECIMALS}f}" if type(value) in (int, float) else value)
+
+
 def _delta(rule: dict[str, Any]) -> str:
-    return (f'{_e(rule["baseline_value"])} → {_e(rule["candidate_value"])}; '
-            f'delta {_e(rule["delta"])}')
+    return (f'{_display(rule["baseline_value"])} → {_display(rule["candidate_value"])}; '
+            f'delta {_display(rule["delta"])}')
 
 
 def _rule_row(rule: dict[str, Any]) -> str:
     success = rule["metric"] == "native_success_rate"
     metric = "native success rate" if success else "separation proxy"
-    compliance = ('n/a' if success else f'baseline min {_e(rule["baseline_value"])}; '
-                  f'candidate min {_e(rule["candidate_value"])}; '
-                  f'threshold {_e(rule["threshold"])} ± {_e(rule["tolerance"])} '
+    compliance = ('n/a' if success else f'baseline min {_display(rule["baseline_value"])}; '
+                  f'candidate min {_display(rule["candidate_value"])}; '
+                  f'threshold {_display(rule["threshold"])} ± {_display(rule["tolerance"])} '
                   f'{_e(rule["units"])}; {_status(rule["verdict"])}')
-    coverage = f'rule coverage {_e(rule.get("coverage", "n/a"))}; ' + '; '.join(
-        f'{key} {_e(rule[key])}' for key in ("samples", "wins", "losses", "ties"))
+    coverage = f'rule coverage {_display(rule.get("coverage", "n/a"))}; ' + '; '.join(
+        f'{key} {_display(rule[key])}' for key in ("samples", "wins", "losses", "ties"))
     return (f'<tr data-rule="{_e(rule["id"])}"><th scope="row">{_e(rule["id"])}<br>{metric}'
             f'<br>{_e(rule["units"])}</th><td>{_status(rule["verdict"])}</td>'
             f'<td>{_delta(rule) if success else "n/a"}</td><td>{compliance}</td>'

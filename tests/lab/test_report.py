@@ -55,7 +55,7 @@ class ReportTests(unittest.TestCase):
         pair = data["pairs"][0]
         self.assertEqual(pair["key"], "static:1")
         self.assertEqual(pair["separation"]["signal"], "action_executed.target")
-        self.assertIn("display fallback", pair["separation"]["signal_source"])
+        self.assertNotIn("display fallback", page)
         self.assertEqual(pair["candidate"]["action_executed"]["target"][3], [15, 10])
         self.assertEqual(pair["baseline"]["action_executed"]["target"][3], [70, 10])
         self.assertEqual(pair["geometry"]["block"]["pose_fields"], ["block_pos", "block_angle"])
@@ -166,10 +166,9 @@ class ReportTests(unittest.TestCase):
         with self.assertRaises(schema.TraceReadError):
             report.render_report(compare, None, base_dir=comparison.parent)
 
-    @unittest.skipUnless(_CHROME.is_file(), "google-chrome is not installed")
-    def test_browser_deep_link(self) -> None:
+    def browser_dom(self, page_text: str) -> str:
         page = self.root / "report.html"
-        page.write_text(self.render())
+        page.write_text(page_text)
         result = subprocess.run(
             [
                 str(_CHROME),
@@ -186,4 +185,55 @@ class ReportTests(unittest.TestCase):
             timeout=30,
             check=True,
         )
-        self.assertRegex(result.stdout, r'id="step-readout"[^>]*>step 3, t = 0.3 s')
+        return result.stdout
+
+    def test_results_display_two_decimals(self) -> None:
+        from guided_streaming_policy.lab import report
+
+        comparison, gate_path = report_pipeline(self.root)
+        compare = report.load_result(comparison)
+        gate = report.load_result(gate_path, gate_result=True)
+        gate["rules"][1].update(baseline_value=44.514561843168565, candidate_value=None)
+        page = report.render_report(compare, gate, base_dir=comparison.parent)
+        table = re.search(r"<tbody>(.*?)</tbody>", page, re.S)[1]
+        self.assertIn("baseline min 44.51; candidate min None; threshold 30.72 ± 0.00 px", table)
+        self.assertIn("1.00 → 1.00; delta 0.00", table)
+        self.assertIn("rule coverage 1.00", table)
+        self.assertNotIn("44.514561843168565", table)
+
+    @unittest.skipUnless(_CHROME.is_file(), "google-chrome is not installed")
+    def test_browser_deep_link(self) -> None:
+        dom = self.browser_dom(self.render())
+        self.assertRegex(dom, r'id="step-readout"[^>]*>step 3, t = 0.30 s')
+        self.assertIn("baseline (solid): 60.00 · candidate (dashed): 5.00 · threshold 30.72", dom)
+        self.assertIn("baseline (solid): 0.30 · candidate (dashed): 0.30", dom)
+
+    @unittest.skipUnless(_CHROME.is_file(), "google-chrome is not installed")
+    def test_browser_separation_uses_configured_observation_signal(self) -> None:
+        from guided_streaming_policy.lab import report
+
+        comparison, gate_path = report_pipeline(self.root)
+        gate = report.load_result(gate_path, gate_result=True)
+        gate["rules"][1]["signal"] = "obs.agent_pos"
+        page = report.render_report(
+            report.load_result(comparison), gate, base_dir=comparison.parent
+        )
+        dom = self.browser_dom(page)
+        self.assertIn("Separation proxy (obs.agent_pos; px; tolerance 0.00)", dom)
+        self.assertIn("baseline (solid): 9.22 · candidate (dashed): 9.22 · threshold 30.72", dom)
+
+    @unittest.skipUnless(_CHROME.is_file(), "google-chrome is not installed")
+    def test_browser_omits_separation_without_rule_or_gate(self) -> None:
+        from guided_streaming_policy.lab import report
+
+        comparison, gate_path = report_pipeline(self.root)
+        compare = report.load_result(comparison)
+        gate = report.load_result(gate_path, gate_result=True)
+        gate["rules"] = gate["rules"][:1]
+        for result in (gate, None):
+            with self.subTest(gate=result):
+                page = report.render_report(compare, result, base_dir=comparison.parent)
+                dom = self.browser_dom(page)
+                headings = re.findall(r"<h3>(.*?)</h3>", dom)
+                self.assertFalse(any("Separation proxy" in heading for heading in headings))
+                self.assertIn("Action step size (px)", headings)

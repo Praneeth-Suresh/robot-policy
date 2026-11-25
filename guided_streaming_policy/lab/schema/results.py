@@ -245,9 +245,11 @@ def _result_rule_schema() -> dict[str, Any]:
         **{key: count for key in ("samples", "wins", "losses", "ties")},
         "coverage": {"type": "number", "minimum": 0, "maximum": 1},
         "reason": text,
+        "signal": text,
     }
     result = _closed_object(
-        props, tuple(key for key in props if key not in ("tolerance", "coverage", "reason"))
+        props,
+        tuple(key for key in props if key not in ("tolerance", "coverage", "reason", "signal")),
     )
     result["description"] = _SUCCESS_DESCRIPTION + " " + _SEPARATION_DESCRIPTION
     result["allOf"] = [

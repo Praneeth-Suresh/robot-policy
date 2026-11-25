@@ -376,6 +376,9 @@
             "minimum": 0,
             "type": "integer"
           },
+          "signal": {
+            "type": "string"
+          },
           "threshold": {
             "type": "number"
           },

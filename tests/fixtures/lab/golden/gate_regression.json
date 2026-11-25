@@ -74,6 +74,7 @@
       "metric": "obstacle_separation_min",
       "required": true,
       "samples": 3,
+      "signal": "action_executed.target",
       "threshold": 30.72,
       "ties": 2,
       "tolerance": 0.0,
