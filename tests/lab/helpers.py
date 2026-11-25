@@ -1,12 +1,21 @@
 """Deterministic synthetic trace builders shared by lab tests."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
-from guided_streaming_policy.lab import schema
+from guided_streaming_policy.lab import adapters, schema
+from guided_streaming_policy.lab.tasks.base import (
+    PolicySpec,
+    PolicyStatus,
+    ProbeResult,
+    TrialCrashed,
+    TrialRecord,
+    TrialRequest,
+    TunableSpec,
+)
 
-__all__ = ["demo_episode", "rollout_episode", "write_traces"]
+__all__ = ["demo_episode", "rollout_episode", "write_traces", "FakeTask", "comparison_document"]
 
 _DT_SECONDS = 0.1
 _TIME_DECIMALS = 6
@@ -77,3 +86,87 @@ def write_traces(directory: Path, episodes: Iterable[schema.Episode]) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     for episode in episodes:
         schema.write_episode(episode, directory)
+
+
+class FakeTask:
+    """Deterministic complete adapter with temporary, reproducible checkpoint pins."""
+
+    name = "toy"
+    crash_seeds: tuple[int, ...] = ()
+    unavailable_reason: str | None = None
+    changed_pin = False
+
+    def __init__(self, root: Path) -> None:
+        self._pins = root / "pins.json"
+        self._pins.write_text(schema.canonical_json({
+            "tasks": {self.name: self.current_pins()},
+        }), encoding="utf-8")
+
+    def policies(self) -> tuple[PolicySpec, ...]:
+        """Return two policies with the same scalar tunable."""
+        return tuple(PolicySpec(name, "toy policy", "fixture", "toy:run", ("toy.ckpt",),
+                                (TunableSpec("gain", 1.0, "fixture gain"),))
+                     for name in ("toy/a", "toy/b"))
+
+    def policy_statuses(self) -> tuple[PolicyStatus, ...]:
+        """Expose a controllable unavailable status."""
+        return tuple(PolicyStatus(spec, "unavailable" if self.unavailable_reason else "runnable",
+                                  self.unavailable_reason) for spec in self.policies())
+
+    def probe(self) -> ProbeResult:
+        """Return fixed simulator identity without external dependencies."""
+        return ProbeResult("toy-sim", "1.0", {}, {})
+
+    def conditions(self) -> tuple[str, ...]:
+        """Return the one supported fixture condition."""
+        return ("c1",)
+
+    def observation_schema(self) -> dict[str, Any]:
+        """Reuse the standard synthetic observation builder."""
+        return dict(demo_episode("toy").manifest["observation_schema"])
+
+    def action_schema(self) -> dict[str, Any]:
+        """Reuse the standard synthetic action builder."""
+        return dict(demo_episode("toy").manifest["action_schema"])
+
+    def timebase(self) -> dict[str, Any]:
+        """Use the fixture control period in seconds."""
+        return {"unit": "s", "mode": "fixed_dt", "dt": _DT_SECONDS}
+
+    def read_demonstrations(self, path: Path) -> Iterator[schema.Episode]:
+        """Read already serialized fixtures."""
+        return adapters.read_traces(path)
+
+    def pins_path(self) -> Path:
+        """Return the temporary pin file."""
+        return self._pins
+
+    def current_pins(self) -> dict[str, Any]:
+        """Expose a controllable checkpoint mismatch."""
+        return {"policies": {spec.name: {
+            "checkpoints": {"toy.ckpt": "changed" if self.changed_pin else "fixture-digest"},
+            "config_sha256": adapters.config_sha256(adapters.resolve_policy_config(spec, {})),
+        } for spec in self.policies()}}
+
+    def run_trial(self, request: TrialRequest) -> TrialRecord:
+        """Record deterministic telemetry and optionally fail with a partial record."""
+        offset = request.seed + float(request.settings.get("gain", 1.0))
+        offset += float(request.policy == "toy/b")
+        episode = demo_episode("toy", offset=offset)
+        record = TrialRecord(episode.steps, schema.sha256_json([request.seed]), True, True,
+                             False, "complete", {"score": offset}, None,
+                             ("obs", "action_executed", "reset_state_fingerprint"))
+        if request.seed in self.crash_seeds:
+            raise TrialCrashed("fixture crash", record)
+        return record
+
+
+def comparison_document(seeds: tuple[int, ...] = (0, 1)) -> dict[str, Any]:
+    """Build the minimal explicit toy comparison matrix."""
+    return {
+        "schema_version": "0.1", "name": "toy-comparison", "task": "toy",
+        "simulator_version": "1.0", "matrix": {"conditions": ["c1"], "seeds": list(seeds)},
+        "variants": {"baseline": {"policy": "toy/a"},
+                     "candidate": {"policy": "toy/a", "overrides": {"gain": 2.0}}},
+        "intended_differences": ["overrides.gain"],
+    }

@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Iterable
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any, NoReturn
 
-from guided_streaming_policy.lab import adapters, doctor, schema
+from guided_streaming_policy.lab import adapters, doctor, exporter, schema
 from guided_streaming_policy.lab.adapters import format_policy_rows, load_pins
 from guided_streaming_policy.lab.tasks.base import TaskAdapter
 from guided_streaming_policy.lab.tasks.registry import get_task
@@ -64,6 +65,7 @@ def add_lab_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
     )
     policies.add_argument("--task", default="pusht", help="Task adapter name (default: pusht).")
     _add_doctor_parser(commands)
+    _add_run_parser(commands)
 
 
 def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -77,6 +79,45 @@ def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) 
     parser.add_argument("--task", default="pusht", help="Task adapter name (default: pusht).")
     parser.add_argument("--out", type=Path, default=Path("out/doctor"),
                         help="Report directory (default: out/doctor). Preserves earlier outputs.")
+
+
+def _add_run_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
+    parser = commands.add_parser(
+        "run", help="Run the simulator and record Policy Trace Lab episodes.",
+        description="Policy Trace Lab runs the simulator for the comparison's explicit "
+                    "conditions and seeds. Requires the task's simulator packages and assets. "
+                    "Push-T assets: data/pusht_cchi_v7_replay.zarr.zip; checkpoints/"
+                    "pusht_state_1000ep_si.ckpt, CCG_V6_ep200.pth (critic), "
+                    "pusht_state_100ep_dp.ckpt, pusht_state_flow_100ep.ckpt. "
+                    "Only the selected policy's checkpoints are required.",
+        epilog="Exit codes: 0 all trials recorded (including logged crashes), "
+               "1 findings/regression, 2 invalid/unreadable/incomplete input, "
+               "3 usage or internal error.",
+    )
+    parser.add_argument("--comparison", type=Path, required=True, help="Comparison JSON file.")
+    parser.add_argument("--variant", choices=("baseline", "candidate"), required=True)
+    parser.add_argument("--out", type=Path, help="Output directory "
+                        "(default: out/runs/<comparison name>/<variant>); must be empty.")
+
+
+def _log_trial(message: str) -> None:
+    sys.stderr.write(message + "\n")
+
+
+def _run_export(args: argparse.Namespace) -> int:
+    config = exporter.load_comparison(args.comparison)
+    try:
+        adapter = get_task(config.task)
+    except KeyError as error:
+        raise exporter.SetupError(str(error)) from error
+    out = args.out if args.out is not None else exporter.default_out_dir(
+        args.comparison, args.variant)
+    command = f"gsp lab run --comparison {args.comparison} --variant {args.variant} --out {out}"
+    with redirect_stdout(sys.stderr):
+        exporter.export_variant(adapter, args.comparison, args.variant, out, command=command,
+                                log=_log_trial)
+    sys.stdout.write(f"run: {out} ({len(config.conditions) * len(config.seeds)} trials)\n")
+    return _EXIT_OK
 
 
 def _run_policies(adapter: TaskAdapter) -> int:
@@ -106,10 +147,12 @@ def _run_doctor(args: argparse.Namespace, adapter: TaskAdapter) -> int:
 
 def run_lab(args: argparse.Namespace) -> int:
     """Dispatch a lab command and translate input/usage/internal failures to exit codes."""
-    if args.lab_command not in ("policies", "doctor"):
+    if args.lab_command not in ("policies", "doctor", "run"):
         sys.stderr.write(f"Unknown Policy Trace Lab command: {args.lab_command}\n")
         return _EXIT_USAGE_OR_INTERNAL
     try:
+        if args.lab_command == "run":
+            return _run_export(args)
         try:
             adapter = get_task(args.task)
         except KeyError as error:
@@ -118,7 +161,7 @@ def run_lab(args: argparse.Namespace) -> int:
         if args.lab_command == "doctor":
             return _run_doctor(args, adapter)
         return _run_policies(adapter)
-    except (OSError, schema.TraceReadError) as error:
+    except (OSError, schema.TraceReadError, exporter.SetupError) as error:
         sys.stderr.write(f"Cannot read or write Policy Trace Lab input/output: {error}\n")
         return _EXIT_INVALID_INPUT
     except Exception as error:

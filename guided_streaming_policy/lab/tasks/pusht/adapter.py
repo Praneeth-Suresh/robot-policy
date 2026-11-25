@@ -11,7 +11,13 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from guided_streaming_policy.lab.schema import Episode
-from guided_streaming_policy.lab.tasks.base import PolicySpec, PolicyStatus, ProbeResult
+from guided_streaming_policy.lab.tasks.base import (
+    PolicySpec,
+    PolicyStatus,
+    ProbeResult,
+    TrialRecord,
+    TrialRequest,
+)
 from guided_streaming_policy.lab.tasks.pusht.pins import compute_pins
 from guided_streaming_policy.lab.tasks.pusht.policies import POLICIES
 from guided_streaming_policy.paths import repo_root
@@ -46,6 +52,16 @@ class PushTTask:
 
     def __init__(self, root: Path | None = None) -> None:
         self._root = repo_root() if root is None else root
+
+    def conditions(self) -> tuple[str, ...]:
+        """Return the supported static simulator condition."""
+        return ("static",)
+
+    def run_trial(self, request: TrialRequest) -> TrialRecord:
+        """Run and record the guided episode, raising TrialCrashed on failure."""
+        from guided_streaming_policy.lab.tasks.pusht.runner import run_pusht_trial
+
+        return run_pusht_trial(request, self._root)
 
     def policies(self) -> tuple[PolicySpec, ...]:
         """Return the five declared static-condition reference policies."""
