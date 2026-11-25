@@ -280,7 +280,7 @@ def _rule_row(rule: dict[str, Any]) -> str:
                   f'threshold {_display(rule["threshold"])} ± {_display(rule["tolerance"])} '
                   f'{_e(rule["units"])}; {_status(rule["verdict"])}')
     coverage = f'rule coverage {_display(rule.get("coverage", "n/a"))}; ' + '; '.join(
-        f'{key} {_display(rule[key])}' for key in ("samples", "wins", "losses", "ties"))
+        f'{key} {_e(rule[key])}' for key in ("samples", "wins", "losses", "ties"))
     return (f'<tr data-rule="{_e(rule["id"])}"><th scope="row">{_e(rule["id"])}<br>{metric}'
             f'<br>{_e(rule["units"])}</th><td>{_status(rule["verdict"])}</td>'
             f'<td>{_delta(rule) if success else "n/a"}</td><td>{compliance}</td>'

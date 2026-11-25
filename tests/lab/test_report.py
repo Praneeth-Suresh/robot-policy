@@ -202,6 +202,21 @@ class ReportTests(unittest.TestCase):
         self.assertIn("rule coverage 1.00", table)
         self.assertNotIn("44.514561843168565", table)
 
+    def test_results_display_counts_as_integers(self) -> None:
+        from guided_streaming_policy.lab import report
+
+        comparison, gate_path = report_pipeline(self.root)
+        compare = report.load_result(comparison)
+        gate = report.load_result(gate_path, gate_result=True)
+        gate["rules"][0].update(samples=4, wins=0, losses=1, ties=3)
+        page = report.render_report(compare, gate, base_dir=comparison.parent)
+        table = re.search(r"<tbody>(.*?)</tbody>", page, re.S)[1]
+        self.assertIn("samples 4; wins 0; losses 1; ties 3</td>", table)
+        for count in ("samples 4", "wins 0", "losses 1", "ties 3"):
+            self.assertNotIn(f"{count}.00", table)
+        self.assertIn("step 3</a>", page)
+        self.assertNotIn("step 3.00", page)
+
     def render_toy(self) -> str:
         from guided_streaming_policy.lab import gate, pairing, report
         from tests.lab.test_toy_task_contract import ToyTask, populate
