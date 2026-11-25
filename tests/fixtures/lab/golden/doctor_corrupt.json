@@ -1,0 +1,86 @@
+{
+  "findings": [
+    {
+      "check": "schema.missing_required",
+      "episode_id": "corrupt",
+      "field": "dataset",
+      "hint": "Supply the required manifest field from the source.",
+      "message": "Manifest lacks dataset.",
+      "severity": "error"
+    },
+    {
+      "check": "shape.mismatch",
+      "episode_id": "corrupt",
+      "field": "obs.agent_pos",
+      "hint": "Match the recorded field shape and manifest declaration without interpolation.",
+      "message": "Shape [1] differs from expected [2].",
+      "severity": "error",
+      "step": 2
+    },
+    {
+      "check": "value.non_finite",
+      "episode_id": "corrupt",
+      "field": "obs.agent_pos",
+      "hint": "Repair the source telemetry; do not interpolate missing values.",
+      "message": "Numeric telemetry contains NaN or infinity.",
+      "severity": "error",
+      "step": 3
+    },
+    {
+      "check": "time.non_monotonic",
+      "episode_id": "corrupt",
+      "field": "t",
+      "hint": "Check the source ordering and timebase.",
+      "message": "Time is not strictly increasing.",
+      "severity": "error",
+      "step": 4
+    },
+    {
+      "check": "time.gap",
+      "episode_id": "corrupt",
+      "field": "t",
+      "hint": "Check for dropped control steps or an incorrect nominal dt.",
+      "message": "Time interval 0.8 exceeds 1.5 x dt.",
+      "severity": "warning",
+      "step": 5
+    },
+    {
+      "check": "split.not_checked",
+      "episode_id": "(dataset)",
+      "hint": "Supply split and split_source in each episode manifest.",
+      "message": "Split leakage could not be checked; no leakage claim is made.",
+      "severity": "info"
+    }
+  ],
+  "input": {
+    "checksum": "fixture",
+    "path": "fixture"
+  },
+  "schema_version": "0.1",
+  "summary": {
+    "checks_run": [
+      "schema.missing_required",
+      "shape.mismatch",
+      "split.duplicate_episode",
+      "split.not_checked",
+      "time.gap",
+      "time.non_monotonic",
+      "value.non_finite"
+    ],
+    "checks_skipped": [
+      {
+        "check": "outcome.inconsistent",
+        "reason": "input has no rollout episodes"
+      },
+      {
+        "check": "split.leakage",
+        "reason": "no split provenance in the input"
+      }
+    ],
+    "counts": {
+      "error": 4,
+      "info": 1,
+      "warning": 1
+    }
+  }
+}

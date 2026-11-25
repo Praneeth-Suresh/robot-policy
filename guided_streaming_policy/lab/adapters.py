@@ -1,7 +1,7 @@
 """Shared task metadata operations; configurations contain policy, entry_point and settings."""
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -14,12 +14,56 @@ __all__ = [
     "load_pins",
     "find_policy",
     "format_policy_rows",
+    "read_traces", "is_trace_dir", "path_checksum", "write_report_file",
 ]
 
 _HASH_PREFIX_HEX_DIGITS = 12
 _NAME_COLUMN_CHARACTERS = 16
 _STATUS_COLUMN_CHARACTERS = 13
 _PIN_COLUMN_CHARACTERS = 36
+
+
+def read_traces(path: Path) -> Iterator[schema.Episode]:
+    """Read an episode or a name-sorted directory of episodes, retaining bad telemetry."""
+    try:
+        directories = ([path] if (path / schema.MANIFEST_FILENAME).is_file()
+                       else schema.list_episode_dirs(path))
+        if not directories:
+            raise schema.TraceReadError(f"No episodes found in {path}")
+        for directory in directories:
+            yield schema.read_episode(directory)
+    except OSError as error:
+        raise schema.TraceReadError(f"Cannot read traces {path}: {error}") from error
+
+
+def is_trace_dir(path: Path) -> bool:
+    """Return whether path contains an episode manifest or immediate episode directories."""
+    return path.is_dir() and (
+        (path / schema.MANIFEST_FILENAME).is_file() or bool(schema.list_episode_dirs(path))
+    )
+
+
+def path_checksum(path: Path) -> str:
+    """Hash a file or sorted [relative POSIX path, content digest] directory entries."""
+    if path.is_file():
+        return schema.sha256_file(path)
+    if not path.is_dir():
+        raise schema.TraceReadError(f"Input does not exist: {path}")
+    entries = sorted((file.relative_to(path).as_posix(), file)
+                     for file in path.rglob("*") if file.is_file())
+    return schema.sha256_json([[relative, schema.sha256_file(file)] for relative, file in entries])
+
+
+def write_report_file(path: Path, text: str) -> None:
+    """Create a UTF-8 report exclusively; identical existing bytes are left untouched."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = text.encode("utf-8")
+    try:
+        with path.open("xb") as stream:
+            stream.write(data)
+    except FileExistsError:
+        if path.read_bytes() != data:
+            raise FileExistsError(f"refusing to overwrite {path}") from None
 
 
 def resolve_policy_config(spec: PolicySpec, overrides: Mapping[str, Any]) -> dict[str, Any]:
