@@ -64,6 +64,8 @@ Open `out/demo/report/report.html` in a browser. The page opens at the first reg
 
 ![Pipeline: simulator, episode trace, data checks, paired evaluation, replay](docs/brand/pipeline.svg)
 
+*After paired evaluation the line splits into baseline and candidate; the ring marks the first discrepancy that replay opens.*
+
 Every capability reads or writes the same versioned **episode trace**, so data checks, comparisons and replay agree on what an episode is. [Architecture](docs/lab/architecture.md) has the module layout and dependency rules. [Schema](docs/lab/schema.md) documents the trace format.
 
 ### Glossary

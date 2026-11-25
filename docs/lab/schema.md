@@ -51,7 +51,7 @@ run/
 | `resolved_config` (`path`, `sha256`) | R | Path (relative to the run directory) and sha256 of the compact sorted-key JSON of the fully resolved configuration |
 | `simulator` (`name`, `version`) | R | Simulator identity |
 | `outcome` | R | `native_success`, `terminated`, `truncated`, `reason`, `length`; optional `native` (the runner's own metrics, verbatim) and `detail` (error text of a crashed trial) |
-| `geometry` | optional | `obstacles` (id, kind, position, radius, units, frame, source) plus optional `goal`, `block`, `arena` objects |
+| `geometry` | optional | `obstacles` (each with `id`, `kind`, `position`, `radius`, `units`, `frame`, `source`) plus optional `goal`, `block`, `arena` objects |
 
 A field missing from `fields_present` means "not collected". It is never "corrupt". Telemetry is never invented or interpolated.
 
@@ -83,7 +83,7 @@ Numbers may be `NaN` or infinity in a corrupt trace, which Doctor reports. The w
 | `compare.json` | [compare_result.schema.json](../../schemas/compare_result.schema.json) | `gsp lab compare` |
 | `gate.json` | [gate_result.schema.json](../../schemas/gate_result.schema.json) | `gsp lab gate` |
 
-Config files you write:
+Config files you write. The comparison config has `schema_version`, `name`, `task`, `simulator_version`, `matrix`, `variants` and `intended_differences`. The gate config has `schema_version`, `name`, `min_completed_pairs`, `max_missing_pairs`, `max_incompatible_pairs` and `rules`. Every field is described in the README's configuration reference.
 
 | File | Schema |
 | --- | --- |
