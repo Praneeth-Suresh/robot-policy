@@ -69,7 +69,35 @@ class GateTests(unittest.TestCase):
         self.assertTrue(compare["pairs"][1]["candidate"]["native_success"])
         self.assertEqual(compare, before)
         self.assertIn("FAIL separation_proxy", gate.render_verdict(result))
-        self.assertIn("first violation: c1 seed 1 step 2 t=0.2", gate.render_verdict(result))
+        self.assertIn("first violation: c1 seed 1 step 2 t=0.20", gate.render_verdict(result))
+
+    def test_verdict_text_formats_numbers_and_preserves_counts(self) -> None:
+        result = regression_gate(self.root)
+        for value, expected in (
+            (190.81528371700207, "190.82"), (-0.126, "-0.13"),
+            (0.0, "0.00"), (1.0, "1.00"), (7, "7"), (None, "n/a"),
+        ):
+            with self.subTest(value=value):
+                result["rules"][0].update(
+                    candidate_value=value, baseline_value=value, delta=value, threshold=value
+                )
+                result["regressions"][0]["first_violation"]["time"] = value
+                text = gate.render_verdict(result)
+                self.assertIn(
+                    f"candidate={expected} baseline={expected} delta={expected} "
+                    f"threshold={expected} fraction of completed pairs", text,
+                )
+                self.assertIn(f"first violation: c1 seed 1 step 2 t={expected}", text)
+
+    def test_verdict_text_displays_missing_evidence_as_na(self) -> None:
+        result = self.evaluate(gate_comparison(self.root, candidate=[]))
+        self.assertIn("candidate=n/a baseline=n/a delta=n/a", gate.render_verdict(result))
+
+    def test_verdict_text_displays_missing_replay_time_as_na(self) -> None:
+        candidates = gate_episodes()
+        candidates[0].manifest["outcome"]["native_success"] = False
+        result = self.evaluate(gate_comparison(self.root, candidate=candidates))
+        self.assertIn("first violation: c1 seed 0 step 5 t=n/a", gate.render_verdict(result))
 
     def test_different_valid_trajectories_pass_and_separation_pair_statistics(self) -> None:
         candidates = gate_episodes()

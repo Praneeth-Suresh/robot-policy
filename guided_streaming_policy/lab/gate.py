@@ -19,11 +19,9 @@ from typing import Any
 
 from guided_streaming_policy.lab import checks, pairing, schema
 
-__all__ = ["evaluate_gate", "render_verdict", "gate_exit_code"]
-
-_EXIT_PASS = 0
-_EXIT_REGRESSION = 1
-_EXIT_BLOCKED = 2
+__all__ = ["DISPLAY_DECIMALS", "evaluate_gate", "render_verdict", "gate_exit_code"]
+DISPLAY_DECIMALS = 2
+_EXIT_PASS, _EXIT_REGRESSION, _EXIT_BLOCKED = 0, 1, 2
 _HASH_PREFIX_CHARACTERS = 12
 _EMPTY_REPLAY_STEP = 0
 _VARIANTS = ("baseline", "candidate")
@@ -162,11 +160,8 @@ def _read_pairs(document: dict[str, Any], base_dir: Path, reasons: list[str]) ->
 
 def _base_rule(rule: schema.GateRule) -> dict[str, Any]:
     return {
-        "id": rule.id,
-        "metric": rule.metric,
-        "required": rule.required,
-        "units": rule.units,
-        "threshold": rule.threshold,
+        "id": rule.id, "metric": rule.metric, "required": rule.required,
+        "units": rule.units, "threshold": rule.threshold,
         **dict.fromkeys(("baseline_value", "candidate_value", "delta")),
         **dict.fromkeys(("samples", "wins", "losses", "ties"), 0),
     }
@@ -369,27 +364,33 @@ def gate_exit_code(document: dict[str, Any]) -> int:
     return code
 
 
+def _display_number(value: float | int | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:.{DISPLAY_DECIMALS}f}" if isinstance(value, float) else str(value)
+
+
 def render_verdict(document: dict[str, Any]) -> str:
     """Render portable plain text including evidence, replay anchor, and config identity."""
     lines = [f"Policy Trace Lab gate: {document['verdict']} (exit {gate_exit_code(document)})"]
     for rule in document["rules"]:
         lines.append(
-            f"{rule['verdict'].upper()} {rule['id']}: candidate={rule['candidate_value']} "
-            f"baseline={rule['baseline_value']} delta={rule['delta']} "
-            f"threshold={rule['threshold']} {rule['units']}"
+            f"{rule['verdict'].upper()} {rule['id']}: "
+            f"candidate={_display_number(rule['candidate_value'])} "
+            f"baseline={_display_number(rule['baseline_value'])} "
+            f"delta={_display_number(rule['delta'])} "
+            f"threshold={_display_number(rule['threshold'])} {rule['units']}"
         )
     if document["verdict"] == "REGRESSION":
-        lines.append(
-            "failing rules: "
-            + ", ".join(rule["id"] for rule in document["rules"] if rule["verdict"] == "fail")
-        )
+        failed = (rule["id"] for rule in document["rules"] if rule["verdict"] == "fail")
+        lines.append("failing rules: " + ", ".join(failed))
         if document["regressions"]:
             pair = document["regressions"][0]
             first = pair["first_violation"]
             step, time = (first["step"], first["time"]) if first else (pair["replay_step"], None)
             lines.append(
                 f"first violation: {pair['key']['condition']} seed {pair['key']['seed']} "
-                f"step {step} t={time}"
+                f"step {step} t={_display_number(time)}"
             )
     if document["verdict"] == "BLOCKED":
         lines.extend(document["blocked_reasons"])
