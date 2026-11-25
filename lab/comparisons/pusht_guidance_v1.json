@@ -1,0 +1,12 @@
+{
+  "schema_version": "0.1",
+  "name": "pusht_guidance_v1",
+  "task": "pusht",
+  "simulator_version": "7.2.0",
+  "matrix": {"conditions": ["static"], "seeds": [0, 1, 2, 3, 4]},
+  "variants": {
+    "baseline": {"policy": "pusht/dp"},
+    "candidate": {"policy": "pusht/dp", "overrides": {"guidance_scale": 0.0}}
+  },
+  "intended_differences": ["overrides.guidance_scale"]
+}
