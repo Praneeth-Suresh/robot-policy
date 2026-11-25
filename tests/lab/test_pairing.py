@@ -219,7 +219,7 @@ class PairingTests(unittest.TestCase):
         delta = document["deltas"]["native_success"]
         self.assertEqual((delta["n"], delta["baseline_rate"], delta["candidate_rate"],
                           delta["delta"], delta["wins"], delta["losses"]), (1, 0, 1, 1, 1, 0))
-        self.assertFalse(document["valid"])
+        self.assertTrue(document["valid"])
 
     def test_extra_episodes_in_both_runs_are_ignored(self) -> None:
         self.runs([geometry_rollout("a"), geometry_rollout("extra", seed=98)],

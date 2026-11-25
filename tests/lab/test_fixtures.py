@@ -21,8 +21,8 @@ _FIXTURES = _ROOT / "tests/fixtures/lab/pusht"
 MAX_FIXTURE_BYTES = 1_500_000
 _DEMOS = {"clean": 0, "no_split": 0, "corrupt": 1, "leakage": 1}
 _SCENARIOS = {"seeded_regression": (0, 1), "two_valid_trajectories": (0, 0),
-              "missing_signal": (0, 2), "mismatched_reset": (2, 2),
-              "truncated": (0, 1), "missing_pairs": (2, 2)}
+              "missing_signal": (0, 2), "mismatched_reset": (0, 2),
+              "truncated": (0, 1), "missing_pairs": (0, 2)}
 
 
 def _invoke(args: list[str]) -> tuple[int, str]:
@@ -145,6 +145,30 @@ class FixtureTests(unittest.TestCase):
                 comparison = json.loads((out / "compare.json").read_text())
                 result = json.loads((out / "gate.json").read_text())
                 self._assert_scenario(name, comparison, result)
+
+    def test_incomplete_scenarios_evaluate_within_gate_limits(self) -> None:
+        for name, kind in (("missing_pairs", "missing"), ("mismatched_reset", "incompatible")):
+            with self.subTest(case=name), tempfile.TemporaryDirectory() as temporary:
+                scenario, out = _FIXTURES / "scenarios" / name, Path(temporary)
+                code, error = _invoke(["compare", str(scenario / "baseline"),
+                                      str(scenario / "candidate"), "--comparison",
+                                      str(scenario / "comparison.json"), "--out", str(out)])
+                self.assertEqual(code, 0, error)
+                comparison = json.loads((out / "compare.json").read_text())
+                self.assertTrue(comparison["valid"])
+                self.assertEqual(comparison["invalid_reasons"], [])
+                self.assertEqual(comparison["coverage"][kind], 2)
+                config = json.loads((scenario / "gate.json").read_text())
+                config.update(min_completed_pairs=2, **{f"max_{kind}_pairs": 2})
+                path = out / "gate-config.json"
+                path.write_text(schema.canonical_json(config))
+                code, error = _invoke(["gate", str(out / "compare.json"), "--gate",
+                                      str(path), "--out", str(out)])
+                self.assertEqual(code, 0, error)
+                result = json.loads((out / "gate.json").read_text())
+                self.assertEqual(result["blocked_reasons"], [])
+                self.assertEqual(result["coverage"]["completed"], 2)
+                self.assertTrue(all(rule["verdict"] == "pass" for rule in result["rules"]))
 
     def _assert_scenario(
         self, name: str, comparison: dict[str, Any], result: dict[str, Any],

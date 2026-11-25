@@ -197,7 +197,7 @@ def _document(
     reasons.extend(_configuration_reasons(runs["baseline"], runs["candidate"], config))
     return {
         "schema_version": schema.SCHEMA_VERSION,
-        "valid": not reasons and coverage["completed"] == coverage["expected"],
+        "valid": not reasons,
         "invalid_reasons": reasons,
         "comparison": {"name": config.name, "sha256": config.sha256, "task": config.task,
                        "simulator_version": config.simulator_version},

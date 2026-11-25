@@ -11,7 +11,13 @@ from unittest.mock import patch
 
 from guided_streaming_policy.cli import main
 from guided_streaming_policy.lab import schema
-from tests.lab.helpers import comparison_config, geometry_rollout, rollout_run
+from tests.lab.helpers import (
+    comparison_config,
+    gate_config,
+    gate_document,
+    geometry_rollout,
+    rollout_run,
+)
 
 __all__: list[str] = []
 
@@ -64,6 +70,53 @@ class CompareCLITests(unittest.TestCase):
         self.assertIn("candidate run comparison hash differs", error)
         self.assertIn("valid: false", output)
         self.assertFalse(json.loads((self.out / "compare.json").read_text())["valid"])
+
+    def test_incomplete_comparison_prints_pair_reasons_and_exits_zero(self) -> None:
+        self.config = comparison_config(self.path, seeds=(0, 1, 2))
+        self.baseline = rollout_run(
+            self.root / "mixed-baseline", "baseline", self.config,
+            [geometry_rollout(str(seed), seed=seed) for seed in (0, 1, 2)],
+        )
+        incompatible = geometry_rollout("1", seed=1)
+        incompatible.manifest["reset_state_fingerprint"] = "different"
+        self.candidate = rollout_run(
+            self.root / "mixed-candidate", "candidate", self.config,
+            [geometry_rollout("0"), incompatible],
+        )
+        code, output, error = self.invoke()
+        self.assertEqual(code, 0, error)
+        self.assertEqual(error, "")
+        self.assertIn("valid: true", output)
+        self.assertIn("incompatible [c1 seed=1]: reset state fingerprints differ", output)
+        self.assertIn("missing [c1 seed=2]: missing episode in candidate run", output)
+        self.assertTrue(json.loads((self.out / "compare.json").read_text())["valid"])
+
+    def test_unintended_config_difference_blocks_compare_and_gate(self) -> None:
+        self.candidate = rollout_run(
+            self.root / "unintended-candidate", "candidate", self.config,
+            [geometry_rollout("a")], resolved_config={
+                "policy": "toy/a", "entry_point": "toy:run",
+                "settings": {"gain": 2.0, "other": 2},
+            },
+        )
+        reason = "unintended configuration difference: settings.other"
+        code, output, error = self.invoke()
+        self.assertEqual(code, 2)
+        self.assertIn("valid: false", output)
+        self.assertIn(reason, error)
+        comparison = json.loads((self.out / "compare.json").read_text())
+        self.assertEqual(comparison["invalid_reasons"], [reason])
+        self.assertEqual(comparison["coverage"]["completed"], 1)
+        document = gate_document()
+        document["min_completed_pairs"] = 1
+        path = self.root / "gate-config.json"
+        gate_config(path, document)
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            code = main(["lab", "gate", str(self.out / "compare.json"),
+                         "--gate", str(path), "--out", str(self.out)])
+        self.assertEqual(code, 2)
+        result = json.loads((self.out / "gate.json").read_text())
+        self.assertEqual(result["blocked_reasons"], [reason])
 
     def test_unreadable_run_is_two(self) -> None:
         self.candidate = self.root / "absent"
