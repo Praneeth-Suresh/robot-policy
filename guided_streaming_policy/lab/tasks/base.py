@@ -10,7 +10,7 @@ from guided_streaming_policy.lab.schema import Episode
 
 __all__ = [
     "TunableSpec", "PolicySpec", "PolicyStatus", "ProbeResult", "TaskAdapter",
-    "TrialRequest", "TrialRecord", "TrialCrashed",
+    "TrialRequest", "TrialRecord", "TrialCrashed", "FixtureSet",
 ]
 
 
@@ -54,10 +54,26 @@ class ProbeResult:
     dependencies: dict[str, bool]
 
 
+@dataclass(frozen=True)
+class FixtureSet:
+    """Synthetic inputs for the offline demo and CI.
+
+    scenario holds baseline/, candidate/, comparison.json and gate.json.
+    """
+
+    demo_clean: Path
+    demo_corrupt: Path
+    scenario: Path
+
+
 class TaskAdapter(Protocol):
     """Expose task metadata and reproducibility inputs without running a policy."""
 
     name: str
+
+    def fixtures(self) -> FixtureSet:
+        """Return the synthetic fixture set used by the offline demo and CI."""
+        ...
 
     def conditions(self) -> tuple[str, ...]:
         """Return supported simulation conditions."""

@@ -1,0 +1,48 @@
+{
+  "comparison": {
+    "name": "mismatched_reset",
+    "sha256": "f8bad8024d903169525b1a14d323017b3c046f8f88ba6ba7a4b45ef8b639bb62"
+  },
+  "episodes": [
+    {
+      "condition": "static",
+      "episode_id": "static__0",
+      "seed": 0
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__1",
+      "seed": 1
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__2",
+      "seed": 2
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__3",
+      "seed": 3
+    }
+  ],
+  "policy": {
+    "checkpoint_id": "synthetic-fixture",
+    "checkpoint_sha256": "synthetic-fixture",
+    "name": "pusht/naive"
+  },
+  "provenance": {
+    "command": "synthetic fixture builder",
+    "created_at": "2026-01-01T00:00:00Z",
+    "git_commit": "fixture",
+    "tool_version": "fixture"
+  },
+  "run_id": "mismatched_reset__candidate",
+  "schema_version": "0.1",
+  "simulator": {
+    "name": "pymunk",
+    "version": "7.2.0"
+  },
+  "synthetic": true,
+  "task": "pusht",
+  "variant": "candidate"
+}

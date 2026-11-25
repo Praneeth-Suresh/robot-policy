@@ -1,6 +1,7 @@
 """Shared task metadata operations; configurations contain policy, entry_point and settings."""
 
 import json
+import shutil
 from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -14,7 +15,7 @@ __all__ = [
     "load_pins",
     "find_policy",
     "format_policy_rows",
-    "read_traces", "is_trace_dir", "path_checksum", "write_report_file",
+    "read_traces", "is_trace_dir", "path_checksum", "write_report_file", "copy_tree_once",
 ]
 
 _HASH_PREFIX_HEX_DIGITS = 12
@@ -64,6 +65,24 @@ def write_report_file(path: Path, text: str) -> None:
     except FileExistsError:
         if path.read_bytes() != data:
             raise FileExistsError(f"refusing to overwrite {path}") from None
+
+
+def copy_tree_once(source: Path, target: Path) -> None:
+    """Copy a tree, retaining identical files and refusing different existing bytes."""
+    if not source.is_dir():
+        raise FileNotFoundError(f"directory not found: {source}")
+    target.mkdir(parents=True, exist_ok=True)
+    for entry in sorted(source.iterdir()):
+        destination = target / entry.name
+        if entry.is_dir():
+            copy_tree_once(entry, destination)
+        else:
+            try:
+                with destination.open("xb") as stream, entry.open("rb") as original:
+                    shutil.copyfileobj(original, stream)
+            except FileExistsError:
+                if destination.read_bytes() != entry.read_bytes():
+                    raise FileExistsError(f"refusing to overwrite {destination}") from None
 
 
 def resolve_policy_config(spec: PolicySpec, overrides: Mapping[str, Any]) -> dict[str, Any]:

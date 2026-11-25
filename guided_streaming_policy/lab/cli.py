@@ -11,7 +11,7 @@ from typing import Any, NoReturn
 
 from guided_streaming_policy.lab import adapters, doctor, exporter, gate, pairing, report, schema
 from guided_streaming_policy.lab.adapters import format_policy_rows, load_pins
-from guided_streaming_policy.lab.tasks.base import TaskAdapter
+from guided_streaming_policy.lab.tasks.base import FixtureSet, TaskAdapter
 from guided_streaming_policy.lab.tasks.registry import get_task
 
 __all__ = ["LabArgumentParser", "add_lab_parser", "run_lab"]
@@ -20,6 +20,7 @@ _EXIT_OK = 0
 _EXIT_INVALID_INPUT = 2
 _EXIT_USAGE_OR_INTERNAL = 3
 _LAB_HELP = "Policy Trace Lab: validate robot data, compare policies, replay regressions."
+_FIXTURES_MISSING = "fixtures not found; run from a source checkout of the repository"
 _DOCTOR_EXITS = (
     "Exit codes: 0 clean, 1 errors found, 2 input unreadable, 3 usage or internal error."
 )
@@ -69,6 +70,7 @@ def add_lab_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
     _add_compare_parser(commands)
     _add_gate_parser(commands)
     _add_report_parser(commands)
+    _add_demo_parser(commands)
 
 
 def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -147,35 +149,64 @@ def _add_report_parser(commands: argparse._SubParsersAction[LabArgumentParser]) 
                         help="Output directory (default: out/report/<comparison name>).")
 
 
-def _run_report(args: argparse.Namespace) -> int:
-    comparison = report.load_result(args.compare_json)
-    result = report.load_result(args.gate, gate_result=True) if args.gate is not None else None
-    page = report.render_report(comparison, result, base_dir=args.compare_json.parent)
-    out = (args.out if args.out is not None
-           else Path("out/report") / comparison["comparison"]["name"])
-    output = out / "report.html"
+def _add_demo_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
+    parser = commands.add_parser(
+        "demo", help="Run the offline Policy Trace Lab synthetic fixture demo.",
+        description="Policy Trace Lab synthetic fixture demo needs only the CPU and the "
+                    "default install. Synthetic fixture data. Not a benchmark.",
+        epilog="Exit codes: 0 pass, 1 regression, 2 invalid/incomplete, 3 usage error.",
+    )
+    parser.add_argument("--out", type=Path, required=True,
+                        help="Output directory; preserves files.")
+    parser.add_argument("--task", default="pusht", help="Task adapter name (default: pusht).")
+
+
+def _report_file(compare_path: Path, gate_path: Path | None, out: Path | None) -> Path:
+    comparison = report.load_result(compare_path)
+    result = report.load_result(gate_path, gate_result=True) if gate_path is not None else None
+    page = report.render_report(comparison, result, base_dir=compare_path.parent)
+    directory = out if out is not None else Path("out/report") / comparison["comparison"]["name"]
+    output = directory / "report.html"
     adapters.write_report_file(output, page)
+    return output
+
+
+def _gate_document(compare_path: Path, gate_path: Path, out: Path | None) -> dict[str, Any]:
+    config = schema.load_gate_config(gate_path)
+    comparison = pairing.load_comparison_result(compare_path)
+    document = gate.evaluate_gate(comparison, config, base_dir=compare_path.parent)
+    directory = out if out is not None else Path("out/gate") / config.name
+    adapters.write_report_file(directory / "gate.json", schema.canonical_json(document))
+    return document
+
+
+def _compare_document(
+    baseline: Path, candidate: Path, config_path: Path, out: Path | None,
+) -> tuple[dict[str, Any], Path]:
+    config = schema.load_comparison_config(config_path)
+    directory = out if out is not None else Path("out/compare") / config.name
+    document = pairing.build_comparison(baseline, candidate, config, out_dir=directory)
+    output = directory / "compare.json"
+    adapters.write_report_file(output, schema.canonical_json(document))
+    return document, output
+
+
+def _run_report(args: argparse.Namespace) -> int:
+    output = _report_file(args.compare_json, args.gate, args.out)
     sys.stdout.write(f"report.html: {output}\n")
     return _EXIT_OK
 
 
 def _run_gate(args: argparse.Namespace) -> int:
-    config = schema.load_gate_config(args.gate)
-    comparison = pairing.load_comparison_result(args.compare_json)
-    document = gate.evaluate_gate(comparison, config, base_dir=args.compare_json.parent)
-    out = args.out if args.out is not None else Path("out/gate") / config.name
-    output = out / "gate.json"
-    adapters.write_report_file(output, schema.canonical_json(document))
-    sys.stdout.write(gate.render_verdict(document) + f"\ngate.json: {output}\n")
+    document = _gate_document(args.compare_json, args.gate, args.out)
+    out = args.out if args.out is not None else Path("out/gate") / document["gate"]["name"]
+    sys.stdout.write(gate.render_verdict(document) + f"\ngate.json: {out / 'gate.json'}\n")
     return gate.gate_exit_code(document)
 
 
 def _run_compare(args: argparse.Namespace) -> int:
-    config = schema.load_comparison_config(args.comparison)
-    out = args.out if args.out is not None else Path("out/compare") / config.name
-    document = pairing.build_comparison(args.baseline_run, args.candidate_run, config, out_dir=out)
-    output = out / "compare.json"
-    adapters.write_report_file(output, schema.canonical_json(document))
+    document, output = _compare_document(args.baseline_run, args.candidate_run,
+                                         args.comparison, args.out)
     sys.stdout.write(pairing.render_summary(document) + f"\ncompare.json: {output}\n")
     for reason in document["invalid_reasons"]:
         sys.stderr.write(reason + "\n")
@@ -213,39 +244,98 @@ def _run_policies(adapter: TaskAdapter) -> int:
     return _EXIT_OK
 
 
-def _run_doctor(args: argparse.Namespace, adapter: TaskAdapter) -> int:
-    path: Path = args.input
+def _doctor_document(path: Path, adapter: TaskAdapter, out: Path) -> dict[str, Any]:
     if not path.exists():
         raise schema.TraceReadError(f"Input does not exist: {path}")
     episodes = (adapters.read_traces(path) if adapters.is_trace_dir(path)
                 else adapter.read_demonstrations(path))
-    report = doctor.check_episodes(episodes, input_path=str(path),
-                                   input_checksum=adapters.path_checksum(path))
-    output = args.out / "doctor.json"
-    adapters.write_report_file(output, schema.canonical_json(report))
-    sys.stdout.write(doctor.render_summary(report) + f"\ndoctor.json: {output}\n")
-    return doctor.exit_code(report)
+    document = doctor.check_episodes(episodes, input_path=str(path),
+                                      input_checksum=adapters.path_checksum(path))
+    adapters.write_report_file(out / "doctor.json", schema.canonical_json(document))
+    return document
+
+
+def _run_doctor(args: argparse.Namespace, adapter: TaskAdapter) -> int:
+    document = _doctor_document(args.input, adapter, args.out)
+    sys.stdout.write(doctor.render_summary(document)
+                     + f"\ndoctor.json: {args.out / 'doctor.json'}\n")
+    return doctor.exit_code(document)
+
+
+def _demo_fixtures(adapter: TaskAdapter) -> FixtureSet:
+    fixtures = adapter.fixtures()
+    scenario = fixtures.scenario
+    required = [scenario / name for name in ("comparison.json", "gate.json")]
+    directories = (fixtures.demo_clean, fixtures.demo_corrupt,
+                   scenario / "baseline", scenario / "candidate")
+    for directory in directories:
+        if not directory.is_dir():
+            raise FileNotFoundError(_FIXTURES_MISSING)
+        episodes = [path for path in directory.iterdir() if path.is_dir()]
+        if not episodes:
+            raise FileNotFoundError(_FIXTURES_MISSING)
+        required.extend(path / name for path in episodes
+                        for name in ("manifest.json", "steps.jsonl"))
+    for variant in ("baseline", "candidate"):
+        directory = scenario / variant
+        required.extend(directory / name for name in ("run_manifest.json", "resolved_config.json"))
+        try:
+            manifest = schema.read_run_manifest(directory)
+        except schema.TraceReadError as error:
+            raise FileNotFoundError(_FIXTURES_MISSING) from error
+        required.extend(directory / cell["episode_id"] / name for cell in manifest["episodes"]
+                        for name in ("manifest.json", "steps.jsonl"))
+    if not all(path.is_file() for path in required):
+        raise FileNotFoundError(_FIXTURES_MISSING)
+    return fixtures
+
+
+def _run_demo(args: argparse.Namespace, adapter: TaskAdapter) -> int:
+    fixtures = _demo_fixtures(adapter)
+    out: Path = args.out
+    scenario = out / "fixtures/scenario"
+    for source, target in ((fixtures.scenario, scenario),
+                           (fixtures.demo_clean, out / "fixtures/demos/clean"),
+                           (fixtures.demo_corrupt, out / "fixtures/demos/corrupt")):
+        adapters.copy_tree_once(source, target)
+    summaries = []
+    for name in ("clean", "corrupt"):
+        document = _doctor_document(out / "fixtures/demos" / name, adapter, out / "doctor" / name)
+        summaries.append(f"== Doctor: {name} fixture (synthetic) ==\n"
+                         + doctor.render_summary(document))
+    _, comparison = _compare_document(scenario / "baseline", scenario / "candidate",
+                                       scenario / "comparison.json", out / "compare")
+    result = _gate_document(comparison, scenario / "gate.json", out / "gate")
+    page = _report_file(comparison, out / "gate/gate.json", out / "report")
+    lines = ["== Gate (synthetic fixture, not a benchmark) ==", gate.render_verdict(result),
+             f"report.html: {page}"]
+    if result["regressions"]:
+        regression = result["regressions"][0]
+        key = regression["key"]
+        lines.append(f"open: {page}#pair={key['condition']}:{key['seed']}"
+                     f"&step={regression['replay_step']}")
+    code = gate.gate_exit_code(result)
+    sys.stdout.write("\n\n".join([*summaries, "\n".join(lines)]) + f"\ndemo exit code: {code}\n")
+    return code
 
 
 def run_lab(args: argparse.Namespace) -> int:
     """Dispatch a lab command and translate input/usage/internal failures to exit codes."""
-    if args.lab_command not in ("policies", "doctor", "run", "compare", "gate", "report"):
+    if args.lab_command not in ("policies", "doctor", "run", "compare", "gate", "report", "demo"):
         sys.stderr.write(f"Unknown Policy Trace Lab command: {args.lab_command}\n")
         return _EXIT_USAGE_OR_INTERNAL
     try:
-        if args.lab_command == "report":
-            return _run_report(args)
-        if args.lab_command == "gate":
-            return _run_gate(args)
-        if args.lab_command == "compare":
-            return _run_compare(args)
-        if args.lab_command == "run":
-            return _run_export(args)
+        handlers = {"report": _run_report, "gate": _run_gate,
+                    "compare": _run_compare, "run": _run_export}
+        if args.lab_command in handlers:
+            return handlers[args.lab_command](args)
         try:
             adapter = get_task(args.task)
         except KeyError as error:
             sys.stderr.write(f"{error}\n")
             return _EXIT_USAGE_OR_INTERNAL
+        if args.lab_command == "demo":
+            return _run_demo(args, adapter)
         if args.lab_command == "doctor":
             return _run_doctor(args, adapter)
         return _run_policies(adapter)

@@ -12,6 +12,7 @@ from typing import Any, Iterator
 
 from guided_streaming_policy.lab.schema import Episode
 from guided_streaming_policy.lab.tasks.base import (
+    FixtureSet,
     PolicySpec,
     PolicyStatus,
     ProbeResult,
@@ -52,6 +53,12 @@ class PushTTask:
 
     def __init__(self, root: Path | None = None) -> None:
         self._root = repo_root() if root is None else root
+
+    def fixtures(self) -> FixtureSet:
+        """Locate committed synthetic fixtures in a source checkout."""
+        root = self._root / "tests/fixtures/lab/pusht"
+        return FixtureSet(root / "demos/clean", root / "demos/corrupt",
+                          root / "scenarios/seeded_regression")
 
     def conditions(self) -> tuple[str, ...]:
         """Return the supported static simulator condition."""

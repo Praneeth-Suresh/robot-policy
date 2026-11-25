@@ -6,6 +6,7 @@ from typing import Any
 
 from guided_streaming_policy.lab import adapters, schema
 from guided_streaming_policy.lab.tasks.base import (
+    FixtureSet,
     PolicySpec,
     PolicyStatus,
     ProbeResult,
@@ -103,6 +104,11 @@ class FakeTask:
         self._pins.write_text(schema.canonical_json({
             "tasks": {self.name: self.current_pins()},
         }), encoding="utf-8")
+
+    def fixtures(self) -> FixtureSet:
+        """Expose temporary locations for protocol completeness; no demo inputs exist."""
+        root = self._pins.parent
+        return FixtureSet(root / "clean", root / "corrupt", root / "scenario")
 
     def policies(self) -> tuple[PolicySpec, ...]:
         """Return two policies with the same scalar tunable."""

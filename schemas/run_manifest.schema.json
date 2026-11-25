@@ -108,6 +108,10 @@
       ],
       "type": "object"
     },
+    "synthetic": {
+      "default": false,
+      "type": "boolean"
+    },
     "task": {
       "type": "string"
     },

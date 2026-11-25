@@ -211,6 +211,7 @@ def run_manifest_json_schema() -> dict[str, Any]:
         "simulator": _strings("name", "version"),
         "provenance": _provenance(),
         "episodes": _array(episode),
+        "synthetic": {"type": "boolean", "default": False},
     }
     required = ("schema_version", "run_id", "task", "policy", "simulator", "provenance", "episodes")
     return _document("run_manifest.schema.json", _obj(props, required))
