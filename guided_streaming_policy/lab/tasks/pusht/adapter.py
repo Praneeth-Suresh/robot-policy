@@ -8,8 +8,9 @@ and the block angle modulo 2*pi radians.
 import importlib.metadata
 import importlib.util
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
+from guided_streaming_policy.lab.schema import Episode
 from guided_streaming_policy.lab.tasks.base import PolicySpec, PolicyStatus, ProbeResult
 from guided_streaming_policy.lab.tasks.pusht.pins import compute_pins
 from guided_streaming_policy.lab.tasks.pusht.policies import POLICIES
@@ -110,6 +111,12 @@ class PushTTask:
     def timebase(self) -> dict[str, Any]:
         """Return the fixed control period in seconds."""
         return {"unit": "s", "mode": "fixed_dt", "dt": _CONTROL_DT_SECONDS}
+
+    def read_demonstrations(self, path: Path) -> Iterator[Episode]:
+        """Convert native demonstrations lazily; raise TraceReadError if unreadable."""
+        from guided_streaming_policy.lab.tasks.pusht.demonstrations import read_demonstrations
+
+        return read_demonstrations(path)
 
     def pins_path(self) -> Path:
         """Return the checked-in pin document under the repository root."""

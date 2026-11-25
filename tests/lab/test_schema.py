@@ -80,6 +80,17 @@ def _doctor_report() -> dict[str, Any]:
 
 
 class SchemaTests(unittest.TestCase):
+    def test_provenance_with_explicit_time_outside_git(self) -> None:
+        created_at = "2026-01-01T00:00:00Z"
+        with tempfile.TemporaryDirectory() as temporary:
+            provenance = schema.make_provenance("gsp lab doctor fixture", created_at,
+                                                root=Path(temporary))
+        self.assertEqual(set(provenance), {"tool_version", "git_commit", "command", "created_at"})
+        self.assertEqual(provenance["created_at"], created_at)
+        self.assertEqual(provenance["command"], "gsp lab doctor fixture")
+        self.assertEqual(provenance["git_commit"], "unknown")
+        self.assertIsInstance(provenance["tool_version"], str)
+
     def test_generated_files_match_builders(self) -> None:
         expected_names = {"episode_manifest.schema.json", "episode_step.schema.json",
                           "run_manifest.schema.json", "doctor_report.schema.json"}

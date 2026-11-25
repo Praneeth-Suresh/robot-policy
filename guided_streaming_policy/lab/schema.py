@@ -11,10 +11,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
+import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +28,7 @@ __all__ = [
     "step_json_schema", "run_manifest_json_schema", "doctor_report_json_schema",
     "generated_schemas", "write_generated_schemas", "canonical_json", "sha256_bytes",
     "sha256_file", "sha256_json", "write_episode", "read_episode", "list_episode_dirs",
-    "write_run_manifest", "read_run_manifest", "main",
+    "write_run_manifest", "read_run_manifest", "make_provenance", "main",
 ]
 
 SCHEMA_VERSION = "0.1"
@@ -53,6 +56,7 @@ _HASH_CHUNK_BYTES = 65536
 _SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 _EXIT_INVALID_INPUT = 2
 _EXIT_USAGE_OR_INTERNAL = 3
+_GIT_TIMEOUT_SECONDS = 5
 
 
 @dataclass(frozen=True)
@@ -65,6 +69,30 @@ class Episode:
 
 class TraceReadError(Exception):
     """A trace is missing, unreadable, or contains invalid JSON objects."""
+
+
+def make_provenance(
+    command: str, created_at: str | None = None, *, root: Path | None = None,
+) -> dict[str, str]:
+    """Record tool version, Git commit, command and UTC creation time to seconds."""
+    try:
+        tool_version = importlib.metadata.version("guided-streaming-policy")
+    except importlib.metadata.PackageNotFoundError:
+        tool_version = "unknown"
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[2] if root is None else root,
+            capture_output=True, text=True, check=True, timeout=_GIT_TIMEOUT_SECONDS,
+        )
+        git_commit = result.stdout.strip() or "unknown"
+    except (OSError, subprocess.SubprocessError):
+        git_commit = "unknown"
+    return {
+        "tool_version": tool_version, "git_commit": git_commit, "command": command,
+        "created_at": created_at if created_at is not None else
+        datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+    }
 
 
 def required_manifest_fields(kind: str) -> tuple[str, ...]:

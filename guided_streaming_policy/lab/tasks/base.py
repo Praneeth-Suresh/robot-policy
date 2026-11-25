@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
+
+from guided_streaming_policy.lab.schema import Episode
 
 __all__ = ["TunableSpec", "PolicySpec", "PolicyStatus", "ProbeResult", "TaskAdapter"]
 
@@ -74,6 +76,13 @@ class TaskAdapter(Protocol):
 
     def timebase(self) -> dict[str, Any]:
         """Return the recorded control timebase and its units."""
+        ...
+
+    def read_demonstrations(self, path: Path) -> Iterator[Episode]:
+        """Convert native demonstrations lazily without modifying the source.
+
+        Raise schema.TraceReadError if the source is unreadable.
+        """
         ...
 
     def pins_path(self) -> Path:
