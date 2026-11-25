@@ -17,6 +17,13 @@ from .jsonschemas import (
     step_json_schema,
     write_generated_schemas,
 )
+from .results import (
+    GateConfig,
+    GateRule,
+    gate_config_json_schema,
+    gate_result_json_schema,
+    load_gate_config,
+)
 from .traces import (
     FIELDS_PRESENT_VALUES,
     KIND_DEMONSTRATION,
@@ -71,6 +78,8 @@ __all__ = [
     "read_run_manifest",
     "make_provenance",
     "main",
+    "GateConfig", "GateRule", "gate_config_json_schema",
+    "gate_result_json_schema", "load_gate_config",
     "ConfigError",
     "VariantSpec",
     "ComparisonConfig",

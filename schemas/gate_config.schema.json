@@ -1,0 +1,127 @@
+{
+  "$id": "gate_config.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "max_incompatible_pairs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "max_missing_pairs": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "min_completed_pairs": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "name": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "rules": {
+      "items": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "Pass iff candidate_rate - baseline_rate >= threshold over completed pairs. A negative threshold tolerates that drop; zero completed pairs means unknown.",
+            "properties": {
+              "compare": {
+                "const": "candidate_minus_baseline"
+              },
+              "id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              "metric": {
+                "const": "native_success_rate"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "units": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "metric",
+              "units",
+              "threshold",
+              "required",
+              "compare"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Candidate verdict: fail if any episode fails, else unknown if any is unknown, else pass. Distances below threshold - tolerance fail; insufficient min_coverage means unknown. Units must equal every obstacle's units or the episode is unknown (units mismatch). Baseline measurements and paired minimum deltas do not affect verdicts.",
+            "properties": {
+              "id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              "metric": {
+                "const": "obstacle_separation_min"
+              },
+              "min_coverage": {
+                "exclusiveMinimum": 0,
+                "maximum": 1,
+                "type": "number"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "signal": {
+                "pattern": "^[^.\\s]+\\.[^.\\s]+$",
+                "type": "string"
+              },
+              "threshold": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "tolerance": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "units": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "metric",
+              "units",
+              "threshold",
+              "required",
+              "signal",
+              "tolerance",
+              "min_coverage"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "min_completed_pairs",
+    "max_missing_pairs",
+    "max_incompatible_pairs",
+    "rules"
+  ],
+  "type": "object"
+}

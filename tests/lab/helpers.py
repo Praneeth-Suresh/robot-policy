@@ -16,7 +16,8 @@ from guided_streaming_policy.lab.tasks.base import (
 )
 
 __all__ = ["demo_episode", "rollout_episode", "write_traces", "FakeTask", "comparison_document",
-           "comparison_config", "geometry_rollout", "rollout_run"]
+           "comparison_config", "geometry_rollout", "rollout_run", "gate_document", "gate_config",
+           "gate_comparison", "gate_episodes"]
 
 _DT_SECONDS = 0.1
 _TIME_DECIMALS = 6
@@ -236,3 +237,50 @@ def rollout_run(
         "episodes": cells,
     }, directory)
     return directory
+
+
+def gate_document() -> dict[str, Any]:
+    """Build the documented gate with explicit evidence and coverage requirements."""
+    return {
+        "schema_version": "0.1", "name": "toy-gate", "min_completed_pairs": 3,
+        "max_missing_pairs": 0, "max_incompatible_pairs": 0,
+        "rules": [
+            {"id": "success_not_worse", "metric": "native_success_rate",
+             "compare": "candidate_minus_baseline", "units": "fraction of completed pairs",
+             "threshold": -0.1, "required": True},
+            {"id": "separation_proxy", "metric": "obstacle_separation_min",
+             "signal": "action_executed.target", "units": "px", "threshold": 30.72,
+             "tolerance": 0.0, "min_coverage": 0.95, "required": True},
+        ],
+    }
+
+
+def gate_config(path: Path, document: dict[str, Any] | None = None) -> schema.GateConfig:
+    """Write canonical gate JSON and load its byte digest."""
+    path.write_text(schema.canonical_json(gate_document() if document is None else document))
+    return schema.load_gate_config(path)
+
+
+def gate_comparison(
+    root: Path, *, candidate: list[schema.Episode] | None = None,
+    baseline: list[schema.Episode] | None = None,
+) -> dict[str, Any]:
+    """Record three paired trajectories with known centre distances in pixels."""
+    from guided_streaming_policy.lab import pairing
+
+    config = comparison_config(root / "comparison.json", seeds=(0, 1, 2))
+    first = baseline if baseline is not None else gate_episodes()
+    second = candidate if candidate is not None else gate_episodes()
+    a = rollout_run(root / "baseline", "baseline", config, first)
+    b = rollout_run(root / "candidate", "candidate", config, second)
+    (root / "compare").mkdir(exist_ok=True)
+    return pairing.build_comparison(a, b, config, out_dir=root / "compare")
+
+
+def gate_episodes() -> list[schema.Episode]:
+    """Return successful episodes whose action minimum is exactly 50 pixels."""
+    episodes = [geometry_rollout(str(seed), seed=seed) for seed in range(3)]
+    for episode in episodes:
+        for step in episode.steps:
+            step["action_executed"]["target"] = [50.0, 0.0]
+    return episodes

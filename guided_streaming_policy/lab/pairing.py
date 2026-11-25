@@ -15,7 +15,8 @@ from typing import Any
 
 from guided_streaming_policy.lab import schema
 
-__all__ = ["build_comparison", "compare_exit_code", "render_summary"]
+__all__ = ["build_comparison", "compare_exit_code", "render_summary",
+           "load_comparison_result", "verify_trace_hashes"]
 
 _VARIANTS = ("baseline", "candidate")
 _HASH_PREFIX_CHARACTERS = 12
@@ -246,3 +247,35 @@ def render_summary(document: dict[str, Any]) -> str:
                  f"candidate={delta['candidate_rate']} delta={delta['delta']} (n={delta['n']})")
     lines.append(f"valid: {str(document['valid']).lower()}")
     return "\n".join(lines)
+
+
+def load_comparison_result(path: Path) -> dict[str, Any]:
+    """Read comparison JSON, rejecting unreadable files and unsupported versions."""
+    try:
+        document: Any = json.loads(path.read_text(encoding="utf-8"))
+        if (not isinstance(document, dict)
+                or document.get("schema_version") != schema.SCHEMA_VERSION):
+            raise ValueError(f"schema_version: expected {schema.SCHEMA_VERSION!r}")
+        schema.canonical_json(document)
+        return document
+    except (OSError, UnicodeError, ValueError) as error:
+        raise schema.TraceReadError(f"Cannot read comparison {path}: {error}") from error
+
+
+def verify_trace_hashes(document: dict[str, Any], base_dir: Path) -> list[str]:
+    """Verify manifest and step file digests for both sides of completed pairs."""
+    messages = []
+    for pair in document["pairs"]:
+        if pair["status"] != "completed":
+            continue
+        for variant in _VARIANTS:
+            entry = pair[variant]
+            for filename, key in ((schema.MANIFEST_FILENAME, "manifest_sha256"),
+                                  (schema.STEPS_FILENAME, "steps_sha256")):
+                path = base_dir / entry["path"] / filename
+                try:
+                    if schema.sha256_file(path) != entry[key]:
+                        messages.append(f"trace hash mismatch: {variant} {path}")
+                except OSError as error:
+                    messages.append(f"trace hash unreadable: {variant} {path}: {error}")
+    return messages

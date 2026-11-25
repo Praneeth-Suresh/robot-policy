@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import comparison_config_json_schema
+from .results import gate_config_json_schema, gate_result_json_schema
 from .traces import (
     _COMMON_FIELDS,
     FIELDS_PRESENT_VALUES,
@@ -301,6 +302,8 @@ def generated_schemas() -> dict[str, dict[str, Any]]:
         "doctor_report.schema.json": doctor_report_json_schema(),
         "comparison_config.schema.json": comparison_config_json_schema(),
         "compare_result.schema.json": compare_result_json_schema(),
+        "gate_config.schema.json": gate_config_json_schema(),
+        "gate_result.schema.json": gate_result_json_schema(),
     }
 
 
