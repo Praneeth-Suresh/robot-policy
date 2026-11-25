@@ -1,0 +1,474 @@
+{
+  "$id": "episode_manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "demonstration"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "schema_version",
+          "kind",
+          "episode_id",
+          "source_episode_id",
+          "task",
+          "split",
+          "split_source",
+          "timebase",
+          "observation_schema",
+          "action_schema",
+          "fields_present",
+          "provenance",
+          "dataset"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "rollout"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "required": [
+          "schema_version",
+          "kind",
+          "episode_id",
+          "source_episode_id",
+          "task",
+          "split",
+          "split_source",
+          "timebase",
+          "observation_schema",
+          "action_schema",
+          "fields_present",
+          "provenance",
+          "condition",
+          "seed",
+          "reset_state_fingerprint",
+          "policy",
+          "resolved_config",
+          "simulator",
+          "outcome"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "action_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "convention": {
+          "enum": [
+            "absolute",
+            "delta"
+          ]
+        },
+        "fields": {
+          "additionalProperties": {
+            "additionalProperties": false,
+            "properties": {
+              "dtype": {
+                "type": "string"
+              },
+              "frame": {
+                "type": "string"
+              },
+              "shape": {
+                "items": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "units": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "shape",
+              "dtype",
+              "units",
+              "frame"
+            ],
+            "type": "object"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "fields",
+        "convention"
+      ],
+      "type": "object"
+    },
+    "condition": {
+      "type": "string"
+    },
+    "dataset": {
+      "additionalProperties": false,
+      "properties": {
+        "checksum": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "revision",
+        "checksum"
+      ],
+      "type": "object"
+    },
+    "episode_id": {
+      "type": "string"
+    },
+    "fields_present": {
+      "items": {
+        "enum": [
+          "obs",
+          "action_executed",
+          "action_proposed",
+          "reward",
+          "info",
+          "reset_state_fingerprint",
+          "geometry"
+        ]
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "geometry": {
+      "additionalProperties": false,
+      "properties": {
+        "goal": {
+          "type": "object"
+        },
+        "obstacles": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "frame": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "position": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "radius": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "source": {
+                "type": "string"
+              },
+              "units": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "position",
+              "radius",
+              "units",
+              "frame",
+              "source"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "obstacles"
+      ],
+      "type": "object"
+    },
+    "kind": {
+      "enum": [
+        "demonstration",
+        "rollout"
+      ]
+    },
+    "media": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "uri"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "observation_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "additionalProperties": {
+            "additionalProperties": false,
+            "properties": {
+              "dtype": {
+                "type": "string"
+              },
+              "frame": {
+                "type": "string"
+              },
+              "shape": {
+                "items": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "units": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "shape",
+              "dtype",
+              "units",
+              "frame"
+            ],
+            "type": "object"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "type": "object"
+    },
+    "outcome": {
+      "additionalProperties": false,
+      "properties": {
+        "length": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "native_success": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "terminated": {
+          "type": "boolean"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "native_success",
+        "terminated",
+        "truncated",
+        "reason",
+        "length"
+      ],
+      "type": "object"
+    },
+    "policy": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint_id": {
+          "type": "string"
+        },
+        "checkpoint_sha256": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "checkpoint_id",
+        "checkpoint_sha256"
+      ],
+      "type": "object"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "git_commit": {
+          "type": "string"
+        },
+        "tool_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool_version",
+        "git_commit",
+        "command",
+        "created_at"
+      ],
+      "type": "object"
+    },
+    "reset_state_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "resolved_config": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "simulator": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "source_episode_id": {
+      "type": "string"
+    },
+    "split": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "split_source": {
+      "type": "string"
+    },
+    "synthetic": {
+      "default": false,
+      "type": "boolean"
+    },
+    "task": {
+      "type": "string"
+    },
+    "timebase": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "fixed_dt"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "dt"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "dt": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "mode": {
+          "enum": [
+            "fixed_dt",
+            "timestamps"
+          ]
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit",
+        "mode"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "episode_id",
+    "source_episode_id",
+    "task",
+    "split",
+    "split_source",
+    "timebase",
+    "observation_schema",
+    "action_schema",
+    "fields_present",
+    "provenance"
+  ],
+  "type": "object"
+}

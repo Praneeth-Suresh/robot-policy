@@ -1,0 +1,134 @@
+{
+  "$id": "doctor_report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "findings": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "type": "string"
+          },
+          "episode_id": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "step": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "check",
+          "severity",
+          "episode_id",
+          "message",
+          "hint"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "input": {
+      "additionalProperties": false,
+      "properties": {
+        "checksum": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "checksum"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "checks_run": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "checks_skipped": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "check": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "check",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "counts": {
+          "additionalProperties": false,
+          "properties": {
+            "error": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "info": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "warning": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "error",
+            "warning",
+            "info"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "counts",
+        "checks_run",
+        "checks_skipped"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "input",
+    "summary",
+    "findings"
+  ],
+  "type": "object"
+}
