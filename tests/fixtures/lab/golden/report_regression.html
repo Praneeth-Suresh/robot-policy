@@ -873,9 +873,15 @@ video{width:100%;max-width:640px}
     const declaration = declarations.fields[name];
     const compatible = declaration && obstacles.every(obstacle =>
       obstacle.units === rule.units && obstacle.frame === declaration.frame);
-    return signal(run, rule.signal).map(value => point(value) && compatible ?
-      Math.min(...obstacles.map(obstacle => Math.hypot(value[0] - obstacle.position[0],
-        value[1] - obstacle.position[1]))) : null);
+    return signal(run, rule.signal).map(value => {
+      const vector = finite(value) ? [value] : value;
+      if (!compatible || !Array.isArray(vector) || !vector.length || !vector.every(finite) ||
+          !obstacles.every(obstacle => Array.isArray(obstacle.position) &&
+            obstacle.position.length === vector.length && obstacle.position.every(finite)))
+        return null;
+      return Math.min(...obstacles.map(obstacle => Math.hypot(
+        ...vector.map((coordinate, axis) => coordinate - obstacle.position[axis]))));
+    });
   }
 
   function actionSize(run) {

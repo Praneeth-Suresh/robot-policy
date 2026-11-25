@@ -343,6 +343,8 @@ class ToyTaskContractTests(unittest.TestCase):
         self.assertEqual(pair["baseline"]["observation_schema"]["fields"]["x"]["shape"], [1])
         self.assertEqual(pair["separation"]["signal"], "obs.x")
         self.assertEqual(pair["separation"]["units"], "m")
+        separation = page.split("function separation(run)")[1].split("function actionSize")[0]
+        self.assertNotRegex(separation, r"point\(value\)|value\[[01]\]|length === 2")
         self.assertIn('id="signal-plots"', page)
         self.assertIn("Separation proxy", page)
         self.assertIn("REGRESSION", page)

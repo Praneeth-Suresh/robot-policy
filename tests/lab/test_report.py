@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from guided_streaming_policy.lab import schema
 from tests.lab.helpers import report_pipeline
@@ -200,6 +201,57 @@ class ReportTests(unittest.TestCase):
         self.assertIn("1.00 → 1.00; delta 0.00", table)
         self.assertIn("rule coverage 1.00", table)
         self.assertNotIn("44.514561843168565", table)
+
+    def render_toy(self) -> str:
+        from guided_streaming_policy.lab import gate, pairing, report
+        from tests.lab.test_toy_task_contract import ToyTask, populate
+
+        with patch.object(ToyTask, "root", self.root):
+            populate(ToyTask())
+        scenario = self.root / "scenario"
+        comparison = pairing.build_comparison(
+            scenario / "baseline",
+            scenario / "candidate",
+            schema.load_comparison_config(scenario / "comparison.json"),
+            out_dir=self.root,
+        )
+        result = gate.evaluate_gate(
+            comparison, schema.load_gate_config(scenario / "gate.json"), base_dir=self.root
+        )
+        return report.render_report(comparison, result, base_dir=self.root)
+
+    @unittest.skipUnless(_CHROME.is_file(), "google-chrome is not installed")
+    def test_browser_toy_separation_vectors_and_scalars(self) -> None:
+        page = self.render_toy()
+        payload = re.search(r'id="trace-data">(.*?)</script>', page, re.S)[1]
+        for scalar, extra, baseline, candidate in (
+            (False, [], "0.63", "0.05"),
+            (True, [], "0.63", "0.05"),
+            (False, [0.3, 0.4], "0.80", "0.50"),
+        ):
+            with self.subTest(scalar=scalar, extra=extra):
+                data = json.loads(payload)
+                for pair in data["pairs"]:
+                    for side in ("baseline", "candidate"):
+                        run = pair[side]
+                        run["observation_schema"]["fields"]["x"]["shape"] = (
+                            [] if scalar else [1 + len(extra)]
+                        )
+                        run["obs"]["x"] = [
+                            value[0] if scalar else value + [0.0] * len(extra)
+                            for value in run["obs"]["x"]
+                        ]
+                        for obstacle in run["geometry"]["obstacles"]:
+                            obstacle["position"] += extra
+                dom = self.browser_dom(page.replace(payload, json.dumps(data)))
+                text = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", "", dom, flags=re.S)
+                text = re.sub(r"<[^>]+>", "", text)
+                self.assertNotIn("not collected", text)
+                self.assertIn(
+                    f"baseline (solid): {baseline} · candidate (dashed): {candidate}"
+                    " · threshold 0.15",
+                    text,
+                )
 
     @unittest.skipUnless(_CHROME.is_file(), "google-chrome is not installed")
     def test_browser_deep_link(self) -> None:
