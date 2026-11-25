@@ -93,7 +93,8 @@ class SchemaTests(unittest.TestCase):
 
     def test_generated_files_match_builders(self) -> None:
         expected_names = {"episode_manifest.schema.json", "episode_step.schema.json",
-                          "run_manifest.schema.json", "doctor_report.schema.json"}
+                          "run_manifest.schema.json", "doctor_report.schema.json",
+                          "comparison_config.schema.json"}
         self.assertEqual(set(schema.generated_schemas()), expected_names)
         for name, document in schema.generated_schemas().items():
             with self.subTest(name=name):
@@ -145,6 +146,28 @@ class SchemaTests(unittest.TestCase):
             jsonschema.validate(report, schema.doctor_report_json_schema())
         with self.assertRaises(jsonschema.ValidationError):
             jsonschema.validate({**STEP, "unknown": True}, schema.step_json_schema())
+
+    @unittest.skipUnless(HAS_JSONSCHEMA, "jsonschema is optional")
+    def test_extended_outcome_and_geometry(self) -> None:
+        import jsonschema
+
+        manifest = minimal_rollout_manifest()
+        manifest["outcome"].update({"detail": "trial crashed", "native": {
+            "reward": 0.5, "extra": {"values": [1, None, True]},
+        }})
+        manifest["geometry"] = {"obstacles": [], "block": {"pose": [1, 2, 3]},
+                                "arena": {"width": 512, "metadata": {"frame": "pixels"}}}
+        jsonschema.validate(manifest, schema.manifest_json_schema())
+        for key, value in (("detail", 1), ("native", []), ("unknown", True)):
+            invalid = copy.deepcopy(manifest)
+            invalid["outcome"][key] = value
+            with self.subTest(key=key), self.assertRaises(jsonschema.ValidationError):
+                jsonschema.validate(invalid, schema.manifest_json_schema())
+        for key in ("block", "arena"):
+            invalid = copy.deepcopy(manifest)
+            invalid["geometry"][key] = []
+            with self.subTest(key=key), self.assertRaises(jsonschema.ValidationError):
+                jsonschema.validate(invalid, schema.manifest_json_schema())
 
     @unittest.skipUnless(HAS_JSONSCHEMA, "jsonschema is optional")
     def test_optional_telemetry_and_metadata(self) -> None:

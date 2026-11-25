@@ -160,6 +160,12 @@
     "geometry": {
       "additionalProperties": false,
       "properties": {
+        "arena": {
+          "type": "object"
+        },
+        "block": {
+          "type": "object"
+        },
         "goal": {
           "type": "object"
         },
@@ -280,9 +286,15 @@
     "outcome": {
       "additionalProperties": false,
       "properties": {
+        "detail": {
+          "type": "string"
+        },
         "length": {
           "minimum": 0,
           "type": "integer"
+        },
+        "native": {
+          "type": "object"
         },
         "native_success": {
           "type": [
