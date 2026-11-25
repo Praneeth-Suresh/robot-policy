@@ -39,6 +39,7 @@ The verdict is whatever the declared rule produces. Nothing is tuned afterwards.
 | Dev tools | `ruff`, `mypy` (strict, `lab` package only), `vulture`, `jsonschema`, in an optional `dev` extra | The repository had none. They are not installed by default. |
 | CI | One new workflow, `.github/workflows/lab.yml`; the repository had no CI | No existing check changed. |
 | Tracking | The session task list tracked T1 to T15. Beryl has no task tracker (`hierarchy.md` is only for initial builds); only durable decisions go in `.beryl/agent/` files | Adding a progress file would break the Beryl rule against progress notes in canonical files. |
+| `NOTICE` | Left unchanged. The build prompt asks to cite each paper in `NOTICE` and also never to change it; the stricter rule wins. Papers are cited in the README ("Play with the reference policies" and attribution) and in the policy registry | Appending to `NOTICE` would change a legal file. |
 | Task order | The brand kit (T12) was built before the report (T9) | The report takes its colours from `tokens.json`. |
 
 ## Brand rationale
@@ -53,4 +54,35 @@ Design skill: `frontend-design` from <https://github.com/anthropics/skills> (Apa
 
 ## Removal manifest
 
-Filled in during the final cleanup (T15) and approved by the maintainer before any pre-existing file is deleted.
+Every pre-existing file in the starting commit `6a0b8ad` has one action. Nothing has been deleted: rows marked **proposed** wait for the maintainer's approval (`AGENTS.md` requires an itemised list before any root documentation is deleted or consolidated). If you approve none of them, the tree stays valid.
+
+### Moved, rewritten or changed
+
+| Path | Action | Reason |
+| --- | --- | --- |
+| `README.md` | rewritten | Policy Trace Lab leads. Kept and moved under "Research workspace": try without downloads, CAR smoke test, setup and assets, run trials, add a new flow policy, development checks. Dropped: the "What is here" intro table (replaced by the new introduction) and the "Research ideas to compare" list (prose with no code or test behind it; git history keeps it). |
+| `guided_streaming_policy/cli.py` | changed | Wires the additive `lab` group; existing subcommands and output unchanged. |
+| `pyproject.toml` | changed | Adds the `dev` extra, ruff, mypy and vulture settings, and package data for report assets. `dependencies` stays empty. |
+| `uv.lock` | changed | Resolves the new `dev` extra; no existing package version changed. |
+| `.gitignore` | changed | Adds `out/` (lab outputs). |
+| `.beryl/agent/architecture.md`, `ubiquitous-language.md`, `testing-policy.md` | changed | Durable decisions, terms and the new lint, type and dead-code commands, as `AGENTS.md` requires. |
+| `.beryl/agent/project-brief.md` | changed (only if `curriculum.md` is removed) | Drops the `curriculum.md` mention in the documentation row. |
+
+### Removed (proposed)
+
+| Path | Action | Reason | What is lost | Where it lives |
+| --- | --- | --- | --- | --- |
+| `curriculum.md` | remove | A personal study plan. No code, test, command or lab document uses it, so it does not contribute to the lab. | The reading list and build tasks for learning the methods. | Git history (`6a0b8ad`). The paper references the lab needs are in the README and the policy registry. |
+| `Robomimic/si_can_results/streaming_si_ode.gif`, `Robomimic/si_can_results/streaming_si_sde.gif` | remove | Generated result files committed by mistake; the repository's own rule is that result directories are gitignored (`.gitignore` ignores `Robomimic/si_*_results/`). Nothing references them. | Two sample GIFs. | Git history. |
+
+### Kept, with the reason
+
+| Paths | Reason |
+| --- | --- |
+| `LICENSE`, `NOTICE` | Legal; unchanged. |
+| `Push-T/**` (research code, README, `.gitignore`), `guided_streaming_policy/core/**`, `guided_streaming_policy/pusht/**` | The reference policies and the runners the lab wraps. Unchanged. |
+| `Robomimic/**` (except the two GIFs), `guided_streaming_policy/robomimic_legacy.py` | Retained research workflow and the next lab task. Unchanged. |
+| `guided_streaming_policy/{__init__,__main__,doctor,paths,pusht_legacy}.py`, `environment.yml` | Used by `gsp check-env`, `gsp run` and the documented Conda fallback. |
+| `docs/reproducibility.md` | The research reproducibility notes, checked by `tests/test_release_structure.py` and linked from `Push-T/README.md`. The lab's own page is `docs/lab/reproducibility.md`. |
+| `tests/test_*.py` (8 files) | Existing tests for code that remains. None deleted or edited. |
+| `AGENTS.md`, `CLAUDE.md`, `.codex/`, `.cursor/`, `.github/copilot-instructions.md`, `.beryl/**` (other than the three files above) | Beryl-generated agent control plane; not edited by hand. |

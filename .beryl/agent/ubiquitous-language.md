@@ -35,6 +35,15 @@
 | Confidence interval | `confidence_interval` | Statistical uncertainty range around an evaluation estimate. | Report with the number of seeds and episodes. | `Error bar` |
 | Observation age | `observation_age` | Time between sensing an observation and executing the action derived from it. | Important for streaming and hardware evaluation. | `Latency` |
 | Action scheduling | `action_scheduling` | Planning execution times for predicted actions to absorb inference and transport delay. | Keep timing explicit at deployment boundaries. | `Queue` |
+| Episode trace | `Episode` (lab) | An episode written as `manifest.json` plus `steps.jsonl` in the lab's versioned format. | Never invent or interpolate telemetry; a field not in `fields_present` is "not collected". | Raw simulator dump |
+| Lab run | run directory | A directory of rollout traces for one variant plus `run_manifest.json`. | Written once; never overwritten. | `Episode` |
+| Matrix cell | `(task, condition, seed)` | One explicit entry of a comparison config's matrix. | Seeds are listed explicitly, never computed at run time. | `Trial` |
+| Pair | `pairs[]` in `compare.json` | The baseline and candidate episodes of one matrix cell, with status `completed`, `incompatible` or `missing`. | A failed, truncated or crashed trial is still `completed`. | `Match` |
+| Gate | `gate.json` | A checked-in rule set applied to a comparison; exit 0 pass, 1 regression, 2 blocked or invalid. | Config is committed before candidate results are inspected. | `Threshold file` |
+| Unknown | `unknown` verdict | A check that cannot be evaluated because evidence is missing or too sparse. | A required unknown blocks the gate (exit 2); never guessed. | `Pass`, `Skipped` |
+| Separation proxy | `obstacle_separation_min` | Minimum distance between a recorded position signal and a virtual obstacle centre. | A proxy, never contact; state the signal and units. | `Collision`, `Contact` |
+| Reference policy | `pusht/dp`, `pusht/naive`, ... | A repository method registered by name and pinned by checkpoint and resolved-config hash. | Behaviour unchanged; a test fails if a pin changes. | `Default policy` |
+| Synthetic fixture | `"synthetic": true` | Generated test or demo data. | Never presented as a benchmark. | `Sample data` |
 
 ## Theory-To-Code Vocabulary
 
