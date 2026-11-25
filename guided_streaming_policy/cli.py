@@ -2,6 +2,7 @@ import argparse
 
 from guided_streaming_policy.doctor import render_environment_report
 from guided_streaming_policy import pusht_legacy, robomimic_legacy
+from guided_streaming_policy.lab.cli import add_lab_parser, run_lab
 
 
 def _all_task_names() -> list[str]:
@@ -14,6 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="CLI for robot-policy experiments and guidance benchmarks.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    add_lab_parser(subparsers)
 
     subparsers.add_parser("check-env", help="Report workspace and dependency status.")
     subparsers.add_parser("list-tasks", help="List available Push-T and Robomimic tasks.")
@@ -59,6 +61,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.command == "lab":
+        return run_lab(args)
     if args.command == "check-env":
         return _handle_check_env()
     if args.command == "list-tasks":

@@ -1,0 +1,85 @@
+"""Standard-library-only task adapter contract for Policy Trace Lab."""
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Protocol
+
+__all__ = ["TunableSpec", "PolicySpec", "PolicyStatus", "ProbeResult", "TaskAdapter"]
+
+
+@dataclass(frozen=True)
+class TunableSpec:
+    """Describe one supported setting and its repository default."""
+
+    name: str
+    default: float | int | str | bool
+    description: str
+
+
+@dataclass(frozen=True)
+class PolicySpec:
+    """Describe a reference policy without importing its runner."""
+
+    name: str
+    summary: str
+    paper: str
+    entry_point: str
+    checkpoints: tuple[str, ...]
+    tunables: tuple[TunableSpec, ...]
+
+
+@dataclass(frozen=True)
+class PolicyStatus:
+    """Report runnable or unavailable status and any missing prerequisites."""
+
+    spec: PolicySpec
+    status: str
+    reason: str | None
+
+
+@dataclass(frozen=True)
+class ProbeResult:
+    """Report simulator identity, asset presence and Python package availability."""
+
+    simulator_name: str
+    simulator_version: str | None
+    assets: dict[str, bool]
+    dependencies: dict[str, bool]
+
+
+class TaskAdapter(Protocol):
+    """Expose task metadata and reproducibility inputs without running a policy."""
+
+    name: str
+
+    def policies(self) -> tuple[PolicySpec, ...]:
+        """Return this task's reference policy specifications."""
+        ...
+
+    def policy_statuses(self) -> tuple[PolicyStatus, ...]:
+        """Return policy readiness with explicit causes for unavailability."""
+        ...
+
+    def probe(self) -> ProbeResult:
+        """Inspect simulator version, assets and dependencies without loading them."""
+        ...
+
+    def observation_schema(self) -> dict[str, Any]:
+        """Return named observation shapes, dtypes, units and coordinate frames."""
+        ...
+
+    def action_schema(self) -> dict[str, Any]:
+        """Return action convention, shapes, dtypes, units and coordinate frames."""
+        ...
+
+    def timebase(self) -> dict[str, Any]:
+        """Return the recorded control timebase and its units."""
+        ...
+
+    def pins_path(self) -> Path:
+        """Return the path of the checked-in pin document for this task."""
+        ...
+
+    def current_pins(self) -> dict[str, Any]:
+        """Recompute this task's simulator, checkpoint and default config pins."""
+        ...

@@ -1,0 +1,44 @@
+{
+  "schema_version": "0.1",
+  "tasks": {
+    "pusht": {
+      "policies": {
+        "pusht/ccg": {
+          "checkpoints": {
+            "Push-T/checkpoints/CCG_V6_ep200.pth": "97c187bc1c4acf691bf6ee4aaea232a8d09f11effd34fd736d0472c37e1cf583",
+            "Push-T/checkpoints/pusht_state_1000ep_si.ckpt": "e3b722c9a87425944a45dae7bd211ef4721b2bb92e50d93244ae795642257127"
+          },
+          "config_sha256": "2b379ece64558c3f84c10c2be47a4776f211da8326be6aa258c721d1480dfb24"
+        },
+        "pusht/dp": {
+          "checkpoints": {
+            "Push-T/checkpoints/pusht_state_100ep_dp.ckpt": "9465fccdb6e249b6332f687ac90f6fbaee388de5f7b5a66bf0d5204e4e211264"
+          },
+          "config_sha256": "56dbb9a4df2fc5f23a3107e53394b5c232ac68e31028369503c217fe88bbb42b"
+        },
+        "pusht/flow": {
+          "checkpoints": {
+            "Push-T/checkpoints/pusht_state_flow_100ep.ckpt": "6c39a99056c3210291dd6311f40a748acff84f5b566afc4eadfd691c9f747899"
+          },
+          "config_sha256": "5ca8d94aa97c5926f71dabca5b5bb7dd221f452d6129eb39235873c5a59ec205"
+        },
+        "pusht/naive": {
+          "checkpoints": {
+            "Push-T/checkpoints/pusht_state_1000ep_si.ckpt": "e3b722c9a87425944a45dae7bd211ef4721b2bb92e50d93244ae795642257127"
+          },
+          "config_sha256": "7396e50e59e9f7d64043660a6a5a39fdddcdc08f27635a2b1c17c67eab9d486d"
+        },
+        "pusht/steg": {
+          "checkpoints": {
+            "Push-T/checkpoints/pusht_state_1000ep_si.ckpt": "e3b722c9a87425944a45dae7bd211ef4721b2bb92e50d93244ae795642257127"
+          },
+          "config_sha256": "c450a49e8e3d85fac0bf646855d0a730f3e842b8ac8a7b7ba50d160417020f1b"
+        }
+      },
+      "simulator": {
+        "name": "pymunk",
+        "version": "7.2.0"
+      }
+    }
+  }
+}
