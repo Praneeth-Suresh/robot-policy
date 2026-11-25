@@ -89,6 +89,7 @@ class RecordingEnvTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
+@unittest.skipUnless(importlib.util.find_spec("numpy"), "runner hooks require optional numpy")
 class RunnerHookTests(unittest.TestCase):
     def setUp(self) -> None:
         self.module = ModuleType("fake_inference")

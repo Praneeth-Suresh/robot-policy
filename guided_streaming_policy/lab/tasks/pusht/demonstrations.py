@@ -4,6 +4,7 @@ The source has no revision or split metadata. Time is derived from the adapter's
 control period; state/action telemetry, including non-finite values, is preserved.
 """
 
+import importlib
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -24,7 +25,7 @@ _TIME_PRECISION_DECIMALS = 6
 
 
 def _arrays(group: Any) -> tuple[Any, Any, list[int]]:
-    import numpy as np
+    np = importlib.import_module("numpy")
 
     state = group["data/state"]
     action = group["data/action"]
@@ -97,7 +98,7 @@ def read_demonstrations(path: Path, created_at: str | None = None) -> Iterator[s
     """
     group = None
     try:
-        import zarr  # type: ignore[import-untyped]
+        zarr = importlib.import_module("zarr")
 
         group = zarr.open(str(path), "r")
         state, action, boundaries = _arrays(group)

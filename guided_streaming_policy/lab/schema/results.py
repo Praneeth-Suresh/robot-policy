@@ -17,7 +17,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .config import ConfigError, _closed_object, _keys, _list, _object, _string
+from .config import (
+    ConfigError,
+    closed_object_schema,
+    config_keys,
+    config_list,
+    config_object,
+    config_string,
+)
 from .traces import SCHEMA_VERSION, sha256_bytes
 
 __all__ = [
@@ -105,12 +112,13 @@ def _finite(value: Any, path: str, *, minimum: float | None = None) -> float:
 
 
 def _rule(value: Any, path: str) -> GateRule:
-    rule = _object(value, path)
+    rule = config_object(value, path)
     metric = rule.get("metric")
     if metric not in _METRICS:
         raise ConfigError(f"{path}.metric: supported metrics: {', '.join(_METRICS)}")
-    _keys(rule, path, _RULE_KEYS + (_SUCCESS_KEYS if metric == _METRICS[0] else _SEPARATION_KEYS))
-    identifier = _string(rule["id"], f"{path}.id")
+    config_keys(rule, path, _RULE_KEYS + (
+        _SUCCESS_KEYS if metric == _METRICS[0] else _SEPARATION_KEYS))
+    identifier = config_string(rule["id"], f"{path}.id")
     if not isinstance(rule["units"], str):
         raise ConfigError(f"{path}.units: expected a string")
     if type(rule["required"]) is not bool:
@@ -147,7 +155,7 @@ def _rule(value: Any, path: str) -> GateRule:
 def _rules(value: Any) -> tuple[GateRule, ...]:
     result: list[GateRule] = []
     identifiers = set()
-    for index, item in enumerate(_list(value, "rules", nonempty=True)):
+    for index, item in enumerate(config_list(value, "rules", nonempty=True)):
         rule = _rule(item, f"rules[{index}]")
         if rule.id in identifiers:
             raise ConfigError(f"rules[{index}].id: duplicate rule id {rule.id!r}")
@@ -160,14 +168,14 @@ def load_gate_config(path: Path) -> GateConfig:
     """Load strict JSON, raising ConfigError with the path of each invalid key."""
     try:
         raw = path.read_bytes()
-        document = _object(json.loads(raw.decode("utf-8")), "gate")
+        document = config_object(json.loads(raw.decode("utf-8")), "gate")
     except (OSError, UnicodeError, ValueError) as error:
         raise ConfigError(f"gate {path}: {error}") from error
-    _keys(document, "gate", _GATE_KEYS)
+    config_keys(document, "gate", _GATE_KEYS)
     if document["schema_version"] != SCHEMA_VERSION:
         raise ConfigError(f"schema_version: expected {SCHEMA_VERSION!r}")
     return GateConfig(
-        name=_string(document["name"], "name"),
+        name=config_string(document["name"], "name"),
         min_completed_pairs=_count(
             document["min_completed_pairs"], "min_completed_pairs", _MINIMUM_PAIRS
         ),
@@ -186,7 +194,7 @@ def gate_config_json_schema() -> dict[str, Any]:
     """Build the closed metric-specific schema; the loader also enforces unique ids."""
     text = {"type": "string", "minLength": 1, "pattern": r"\S"}
     shared = {"id": text, "required": {"type": "boolean"}, "units": {"type": "string"}}
-    success = _closed_object(
+    success = closed_object_schema(
         {
             **shared,
             "metric": {"const": _METRICS[0]},
@@ -196,7 +204,7 @@ def gate_config_json_schema() -> dict[str, Any]:
         _RULE_KEYS + _SUCCESS_KEYS,
     )
     success["description"] = _SUCCESS_DESCRIPTION
-    separation = _closed_object(
+    separation = closed_object_schema(
         {
             **shared,
             "metric": {"const": _METRICS[1]},
@@ -211,7 +219,7 @@ def gate_config_json_schema() -> dict[str, Any]:
     return {
         "$schema": _SCHEMA_DIALECT,
         "$id": "gate_config.schema.json",
-        **_closed_object(
+        **closed_object_schema(
             {
                 "schema_version": {"const": SCHEMA_VERSION},
                 "name": text,
@@ -247,7 +255,7 @@ def _result_rule_schema() -> dict[str, Any]:
         "reason": text,
         "signal": text,
     }
-    result = _closed_object(
+    result = closed_object_schema(
         props,
         tuple(key for key in props if key not in ("tolerance", "coverage", "reason", "signal")),
     )
@@ -267,9 +275,9 @@ def _regression_schema() -> dict[str, Any]:
     text = {"type": "string"}
     count = {"type": "integer", "minimum": 0}
     category = {"enum": ["crashed", "truncated", "native_fail", "constraint_fail"]}
-    entry = _closed_object({"episode_id": text, "path": text}, ("episode_id", "path"))
+    entry = closed_object_schema({"episode_id": text, "path": text}, ("episode_id", "path"))
     props = {
-        "key": _closed_object(
+        "key": closed_object_schema(
             {"task": text, "condition": text, "seed": {"type": "integer"}},
             ("task", "condition", "seed"),
         ),
@@ -279,7 +287,7 @@ def _regression_schema() -> dict[str, Any]:
         "first_violation": {
             "anyOf": [
                 {"type": "null"},
-                _closed_object(
+                closed_object_schema(
                     {"step": count, "time": {"type": ["number", "null"]}}, ("step", "time")
                 ),
             ]
@@ -289,13 +297,13 @@ def _regression_schema() -> dict[str, Any]:
         "baseline": entry,
         "candidate": entry,
     }
-    return _closed_object(props, tuple(props))
+    return closed_object_schema(props, tuple(props))
 
 
 def gate_result_json_schema() -> dict[str, Any]:
     """Build deterministic gate verdict, rule evidence, and regression replay contract."""
     text = {"type": "string"}
-    identity = _closed_object({"name": text, "sha256": text}, ("name", "sha256"))
+    identity = closed_object_schema({"name": text, "sha256": text}, ("name", "sha256"))
     coverage = (
         "expected",
         "completed",
@@ -312,7 +320,7 @@ def gate_result_json_schema() -> dict[str, Any]:
         "verdict": {"enum": ["PASS", "REGRESSION", "BLOCKED"]},
         "exit_code": {"enum": [0, 1, 2]},
         "blocked_reasons": {"type": "array", "items": text},
-        "coverage": _closed_object(
+        "coverage": closed_object_schema(
             {key: {"type": "integer", "minimum": 0} for key in coverage}, coverage
         ),
         "rules": {"type": "array", "items": _result_rule_schema()},
@@ -321,7 +329,7 @@ def gate_result_json_schema() -> dict[str, Any]:
     return {
         "$schema": _SCHEMA_DIALECT,
         "$id": "gate_result.schema.json",
-        **_closed_object(props, tuple(props)),
+        **closed_object_schema(props, tuple(props)),
         "allOf": [
             {
                 "if": {"properties": {"verdict": {"const": verdict}}},

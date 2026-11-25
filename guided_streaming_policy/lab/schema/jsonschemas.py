@@ -14,7 +14,6 @@ from typing import Any
 from .config import comparison_config_json_schema
 from .results import gate_config_json_schema, gate_result_json_schema
 from .traces import (
-    _COMMON_FIELDS,
     FIELDS_PRESENT_VALUES,
     KIND_DEMONSTRATION,
     KIND_ROLLOUT,
@@ -168,7 +167,8 @@ def manifest_json_schema() -> dict[str, Any]:
         "geometry": _geometry(),
         "synthetic": {"type": "boolean", "default": False},
     }
-    body = _obj(props, _COMMON_FIELDS)
+    body = _obj(props, tuple(name for name in required_manifest_fields(KIND_DEMONSTRATION)
+                             if name != "dataset"))
     body["allOf"] = [
         {
             "if": {"properties": {"kind": {"const": kind}}, "required": ["kind"]},

@@ -12,6 +12,7 @@ import sys
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from importlib import import_module as _import_optional
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -127,7 +128,7 @@ def _block_shapes() -> list[list[list[float]]]:
 
 
 def _geometry(module: ModuleType) -> dict[str, Any]:
-    import numpy as np
+    np = _import_optional("numpy")
 
     position = module.unnormalize_data(
         np.array(STATIC_OBSTACLE_NORM, dtype=np.float32), module.stats["action"])

@@ -1,0 +1,29 @@
+name: Policy Trace Lab
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lab-offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: python -m pip install -e ".[dev]" numpy==1.26.4 zarr==2.18.3
+      - run: python -m ruff check guided_streaming_policy/lab tests/lab
+      - run: python -m mypy
+      - run: python -m vulture
+      - run: python -m compileall -q guided_streaming_policy Push-T tests
+      - run: python -m unittest discover -s tests -v
+      - name: Verify the synthetic regression demo
+        shell: bash
+        run: |
+          set +e
+          gsp lab demo --out out/demo
+          demo_code=$?
+          set -e
+          test "$demo_code" -eq 1
+          python -c "import json; from pathlib import Path; gate = json.loads(Path('out/demo/gate/gate.json').read_text()); assert gate['verdict'] == 'REGRESSION'; assert gate['exit_code'] == 1; assert any(rule['id'] == 'separation_proxy' and rule['verdict'] == 'fail' for rule in gate['rules']); assert 'Synthetic fixture data. Not a benchmark.' in Path('out/demo/report/report.html').read_text()"

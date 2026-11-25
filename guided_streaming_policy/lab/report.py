@@ -38,19 +38,22 @@ def _e(value: Any) -> str:
 def _valid(value: Any, spec: dict[str, Any], root: dict[str, Any]) -> bool:
     if "$ref" in spec:
         return _valid(value, root["$defs"][spec["$ref"].split("/")[-1]], root)
-    types: dict[str, type[Any] | tuple[type[Any], ...]] = {
-        "object": dict, "array": list, "string": str, "integer": int,
-        "number": (int, float), "boolean": bool, "null": type(None)}
-    kinds = spec.get("type", [])
-    kinds = [kinds] if isinstance(kinds, str) else kinds
-    if kinds and not any(isinstance(value, types[k]) and not (
-            k in ("integer", "number") and isinstance(value, bool)) for k in kinds):
+    if not _type_valid(value, spec.get("type", [])):
         return False
     if "const" in spec and not _same(value, spec["const"]):
         return False
     if "enum" in spec and not any(_same(value, item) for item in spec["enum"]):
         return False
     return _branches(value, spec, root) and _contents(value, spec, root)
+
+
+def _type_valid(value: Any, kinds: str | list[str]) -> bool:
+    types: dict[str, type[Any] | tuple[type[Any], ...]] = {
+        "object": dict, "array": list, "string": str, "integer": int,
+        "number": (int, float), "boolean": bool, "null": type(None)}
+    kinds = [kinds] if isinstance(kinds, str) else kinds
+    return not kinds or any(isinstance(value, types[k]) and not (
+        k in ("integer", "number") and isinstance(value, bool)) for k in kinds)
 
 
 def _same(value: Any, expected: Any) -> bool:
@@ -160,8 +163,7 @@ def _episode(path: Path) -> dict[str, Any]:
     return data
 
 
-def _geometry_valid(geometry: dict[str, Any]) -> None:
-    block = geometry.get("block", {})
+def _block_valid(block: dict[str, Any]) -> None:
     shapes = block.get("shapes", [])
     if any(not isinstance(shape, list) or not shape
            or not all(_value_shape(point, [2]) for point in shape) for shape in shapes):
@@ -170,11 +172,17 @@ def _geometry_valid(geometry: dict[str, Any]) -> None:
     if pose_fields and (not isinstance(pose_fields, list) or len(pose_fields) != 2
                         or not all(isinstance(v, str) for v in pose_fields)):
         raise ValueError("invalid block pose_fields")
+
+
+def _geometry_valid(geometry: dict[str, Any]) -> None:
+    _block_valid(geometry.get("block", {}))
     goal = geometry.get("goal", {})
     if "pose" in goal and not _value_shape(goal["pose"], [3]):
         raise ValueError("invalid goal pose")
     for obstacle in geometry.get("obstacles", []):
-        if not _value_shape(obstacle["position"], [2]):
+        position = obstacle["position"]
+        if (not isinstance(position, list) or not position
+                or not _value_shape(position, [len(position)])):
             raise ValueError("invalid obstacle position")
     arena = geometry.get("arena", {})
     if "size" in arena and (not _value_shape(arena["size"], [2])
@@ -200,7 +208,11 @@ def _trace_data(compare: dict[str, Any], gate: dict[str, Any] | None, base: Path
         if pair["status"] != "completed":
             continue
         first = sides["baseline"]
-        pairs.append({"key": _key(pair), **sides, "geometry": first["geometry"],
+        geometry = first["geometry"]
+        if any(len(item["position"]) != 2 for item in geometry.get("obstacles", [])):
+            geometry = {**geometry, "obstacles": [item for item in geometry["obstacles"]
+                                                 if len(item["position"]) == 2]}
+        pairs.append({"key": _key(pair), **sides, "geometry": geometry,
                       "time_unit": first["timebase"]["unit"],
                       "regression": regressions.get(_key(pair)),
                       "separation": separation})

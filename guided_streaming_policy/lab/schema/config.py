@@ -17,6 +17,7 @@ from typing import Any
 from .traces import SCHEMA_VERSION, sha256_bytes
 
 __all__ = [
+    "config_object", "config_keys", "config_string", "config_list", "closed_object_schema",
     "ConfigError",
     "VariantSpec",
     "ComparisonConfig",
@@ -65,13 +66,13 @@ class ComparisonConfig:
     sha256: str
 
 
-def _object(value: Any, path: str) -> dict[str, Any]:
+def config_object(value: Any, path: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ConfigError(f"{path}: expected an object")
     return value
 
 
-def _keys(
+def config_keys(
     value: dict[str, Any], path: str, required: tuple[str, ...], optional: tuple[str, ...] = ()
 ) -> None:
     for key in required:
@@ -82,13 +83,13 @@ def _keys(
             raise ConfigError(f"{path}.{key}: unknown key")
 
 
-def _string(value: Any, path: str) -> str:
+def config_string(value: Any, path: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ConfigError(f"{path}: expected a non-empty string")
     return value
 
 
-def _list(value: Any, path: str, *, nonempty: bool = False) -> list[Any]:
+def config_list(value: Any, path: str, *, nonempty: bool = False) -> list[Any]:
     if not isinstance(value, list) or (nonempty and not value):
         raise ConfigError(f"{path}: expected {'a non-empty' if nonempty else 'a'} list")
     return value
@@ -96,9 +97,9 @@ def _list(value: Any, path: str, *, nonempty: bool = False) -> list[Any]:
 
 def _conditions(value: Any) -> tuple[str, ...]:
     result: list[str] = []
-    for index, item in enumerate(_list(value, "matrix.conditions", nonempty=True)):
+    for index, item in enumerate(config_list(value, "matrix.conditions", nonempty=True)):
         path = f"matrix.conditions[{index}]"
-        condition = _string(item, path)
+        condition = config_string(item, path)
         if condition in result:
             raise ConfigError(f"{path}: duplicate condition")
         result.append(condition)
@@ -107,7 +108,7 @@ def _conditions(value: Any) -> tuple[str, ...]:
 
 def _seeds(value: Any) -> tuple[int, ...]:
     result: list[int] = []
-    for index, seed in enumerate(_list(value, "matrix.seeds", nonempty=True)):
+    for index, seed in enumerate(config_list(value, "matrix.seeds", nonempty=True)):
         path = f"matrix.seeds[{index}]"
         if type(seed) is not int or seed < _MINIMUM_SEED:
             raise ConfigError(f"{path}: expected a non-negative integer (not bool)")
@@ -118,10 +119,10 @@ def _seeds(value: Any) -> tuple[int, ...]:
 
 
 def _variant(value: Any, path: str) -> VariantSpec:
-    variant = _object(value, path)
-    _keys(variant, path, ("policy",), ("overrides",))
-    policy = _string(variant["policy"], f"{path}.policy")
-    overrides = _object(variant.get("overrides", {}), f"{path}.overrides")
+    variant = config_object(value, path)
+    config_keys(variant, path, ("policy",), ("overrides",))
+    policy = config_string(variant["policy"], f"{path}.policy")
+    overrides = config_object(variant.get("overrides", {}), f"{path}.overrides")
     for key, scalar in overrides.items():
         if not isinstance(scalar, (bool, int, float, str)) or (
             isinstance(scalar, float) and not math.isfinite(scalar)
@@ -133,9 +134,9 @@ def _variant(value: Any, path: str) -> VariantSpec:
 def _differences(value: Any, variants: dict[str, VariantSpec]) -> tuple[str, ...]:
     result: list[str] = []
     override_keys = {key for variant in variants.values() for key in variant.overrides}
-    for index, item in enumerate(_list(value, "intended_differences")):
+    for index, item in enumerate(config_list(value, "intended_differences")):
         path = f"intended_differences[{index}]"
-        entry = _string(item, path)
+        entry = config_string(item, path)
         if entry != "policy" and not (
             entry.startswith("overrides.")
             and entry.removeprefix("overrides.") in override_keys
@@ -152,19 +153,19 @@ def load_comparison_config(path: Path) -> ComparisonConfig:
     """Read and validate a config, reporting invalid keys with their full paths."""
     try:
         raw = path.read_bytes()
-        document = _object(json.loads(raw.decode("utf-8")), "comparison")
+        document = config_object(json.loads(raw.decode("utf-8")), "comparison")
     except (OSError, UnicodeError, ValueError) as error:
         raise ConfigError(f"comparison {path}: {error}") from error
-    _keys(document, "comparison", _CONFIG_KEYS)
+    config_keys(document, "comparison", _CONFIG_KEYS)
     if document["schema_version"] != SCHEMA_VERSION:
         raise ConfigError(f"schema_version: expected {SCHEMA_VERSION!r}")
-    name = _string(document["name"], "name")
-    task = _string(document["task"], "task")
-    simulator_version = _string(document["simulator_version"], "simulator_version")
-    matrix = _object(document["matrix"], "matrix")
-    _keys(matrix, "matrix", ("conditions", "seeds"))
-    variant_objects = _object(document["variants"], "variants")
-    _keys(variant_objects, "variants", _VARIANT_NAMES)
+    name = config_string(document["name"], "name")
+    task = config_string(document["task"], "task")
+    simulator_version = config_string(document["simulator_version"], "simulator_version")
+    matrix = config_object(document["matrix"], "matrix")
+    config_keys(matrix, "matrix", ("conditions", "seeds"))
+    variant_objects = config_object(document["variants"], "variants")
+    config_keys(variant_objects, "variants", _VARIANT_NAMES)
     variants = {key: _variant(variant_objects[key], f"variants.{key}") for key in _VARIANT_NAMES}
     return ComparisonConfig(
         name=name,
@@ -178,7 +179,7 @@ def load_comparison_config(path: Path) -> ComparisonConfig:
     )
 
 
-def _closed_object(properties: dict[str, Any], required: tuple[str, ...]) -> dict[str, Any]:
+def closed_object_schema(properties: dict[str, Any], required: tuple[str, ...]) -> dict[str, Any]:
     return {
         "type": "object",
         "properties": properties,
@@ -197,7 +198,7 @@ def _unique_array(items: dict[str, Any], *, nonempty: bool = False) -> dict[str,
 def comparison_config_json_schema() -> dict[str, Any]:
     """Build the config schema; the loader also checks override key references."""
     text = {"type": "string", "minLength": _MINIMUM_LIST_LENGTH, "pattern": r"\S"}
-    variant = _closed_object(
+    variant = closed_object_schema(
         {
             "policy": text,
             "overrides": {
@@ -209,21 +210,22 @@ def comparison_config_json_schema() -> dict[str, Any]:
         },
         ("policy",),
     )
-    matrix = _closed_object(
+    matrix = closed_object_schema(
         {
             "conditions": _unique_array(text, nonempty=True),
             "seeds": _unique_array({"type": "integer", "minimum": _MINIMUM_SEED}, nonempty=True),
         },
         ("conditions", "seeds"),
     )
-    body = _closed_object(
+    body = closed_object_schema(
         {
             "schema_version": {"const": SCHEMA_VERSION},
             "name": text,
             "task": text,
             "simulator_version": text,
             "matrix": matrix,
-            "variants": _closed_object({key: variant for key in _VARIANT_NAMES}, _VARIANT_NAMES),
+            "variants": closed_object_schema(
+                {key: variant for key in _VARIANT_NAMES}, _VARIANT_NAMES),
             "intended_differences": _unique_array(
                 {
                     "type": "string",

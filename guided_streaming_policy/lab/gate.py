@@ -33,13 +33,8 @@ _Measurements = list[tuple[dict[str, Any], schema.Episode, schema.Episode]]
 
 def _shape_type(value: Any, kind: str) -> bool:
     types: dict[str, type[Any] | tuple[type[Any], ...]] = {
-        "object": dict,
-        "array": list,
-        "string": str,
-        "integer": int,
-        "number": (int, float),
-        "boolean": bool,
-        "null": type(None),
+        "object": dict, "array": list, "string": str, "integer": int,
+        "number": (int, float), "boolean": bool, "null": type(None),
     }
     return isinstance(value, types[kind]) and not (
         kind in ("integer", "number") and isinstance(value, bool)
@@ -56,10 +51,7 @@ def _shape(value: Any, spec: dict[str, Any], path: str) -> None:
     kinds = [kinds] if isinstance(kinds, str) else kinds
     if kinds and not any(_shape_type(value, kind) for kind in kinds):
         raise ValueError(f"{path}: expected {kinds}")
-    if "const" in spec and value != spec["const"]:
-        raise ValueError(f"{path}: unsupported value {value!r}")
-    if "enum" in spec and value not in spec["enum"]:
-        raise ValueError(f"{path}: unsupported value {value!r}")
+    _literal_shape(value, spec, path)
     if isinstance(value, dict):
         _object_shape(value, spec, path)
     elif isinstance(value, list):
@@ -67,6 +59,13 @@ def _shape(value: Any, spec: dict[str, Any], path: str) -> None:
             _shape(item, spec["items"], f"{path}[{index}]")
     elif type(value) in (int, float):
         _number_shape(value, spec, path)
+
+
+def _literal_shape(value: Any, spec: dict[str, Any], path: str) -> None:
+    if "const" in spec and value != spec["const"]:
+        raise ValueError(f"{path}: unsupported value {value!r}")
+    if "enum" in spec and value not in spec["enum"]:
+        raise ValueError(f"{path}: unsupported value {value!r}")
 
 
 def _matches(value: Any, spec: dict[str, Any]) -> bool:
@@ -111,8 +110,9 @@ def _comparison_errors(document: dict[str, Any]) -> list[str]:
             raise ValueError("completed pair has an absent episode")
         if document["deltas"]["native_success"]["n"] != counts["completed"]:
             raise ValueError("deltas.native_success.n: does not match completed pairs")
-        if not document["valid"] and counts["completed"] == counts["expected"]:
-            return document["invalid_reasons"] or ["comparison is not valid"]
+        if not document["valid"]:
+            return document["invalid_reasons"] or (
+                ["comparison is not valid"] if counts["completed"] == counts["expected"] else [])
         return list(document["invalid_reasons"])
     except (ValueError, TypeError, KeyError, OverflowError) as error:
         return [f"invalid comparison: {error}"]

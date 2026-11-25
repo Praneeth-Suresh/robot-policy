@@ -1,5 +1,6 @@
 """Doctor command input selection, outputs and documented exit codes."""
 
+import importlib.util
 import io
 import json
 import subprocess
@@ -122,6 +123,7 @@ class DoctorCLITests(unittest.TestCase):
             self.assertTrue((root / "out/doctor/doctor.json").is_file())
 
     @unittest.skipUnless(_REAL_DEMOS.is_file(), "native demonstration file is absent")
+    @unittest.skipUnless(importlib.util.find_spec("zarr"), "native demonstrations require zarr")
     def test_real_demonstrations(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             code, output, error = self.invoke(str(_REAL_DEMOS), "--out", temp)

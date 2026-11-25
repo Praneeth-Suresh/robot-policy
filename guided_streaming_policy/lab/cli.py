@@ -11,6 +11,7 @@ from typing import Any, NoReturn
 
 from guided_streaming_policy.lab import adapters, doctor, exporter, gate, pairing, report, schema
 from guided_streaming_policy.lab.adapters import format_policy_rows, load_pins
+from guided_streaming_policy.lab.tasks import registry
 from guided_streaming_policy.lab.tasks.base import FixtureSet, TaskAdapter
 from guided_streaming_policy.lab.tasks.registry import get_task
 
@@ -66,7 +67,7 @@ def add_lab_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
     )
     policies.add_argument("--task", default="pusht", help="Task adapter name (default: pusht).")
     _add_doctor_parser(commands)
-    _add_run_parser(commands)
+    _add_run_parser(commands, policies.get_default("task"))
     _add_compare_parser(commands)
     _add_gate_parser(commands)
     _add_report_parser(commands)
@@ -86,14 +87,13 @@ def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) 
                         help="Report directory (default: out/doctor). Preserves earlier outputs.")
 
 
-def _add_run_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
+def _add_run_parser(commands: argparse._SubParsersAction[LabArgumentParser], task: str) -> None:
+    assets = ", ".join(sorted(registry.get_task(task).probe().assets))
     parser = commands.add_parser(
         "run", help="Run the simulator and record Policy Trace Lab episodes.",
         description="Policy Trace Lab runs the simulator for the comparison's explicit "
                     "conditions and seeds. Requires the task's simulator packages and assets. "
-                    "Push-T assets: data/pusht_cchi_v7_replay.zarr.zip; checkpoints/"
-                    "pusht_state_1000ep_si.ckpt, CCG_V6_ep200.pth (critic), "
-                    "pusht_state_100ep_dp.ckpt, pusht_state_flow_100ep.ckpt. "
+                    f"Default task assets: {assets}. "
                     "Only the selected policy's checkpoints are required.",
         epilog="Exit codes: 0 all trials recorded (including logged crashes), "
                "1 findings/regression, 2 invalid/unreadable/incomplete input, "

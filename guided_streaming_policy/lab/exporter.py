@@ -85,6 +85,14 @@ def _resolve_variant(
     return resolved, policy, adapter.run_trial
 
 
+def _validate_output_directory(out_dir: Path) -> None:
+    try:
+        if out_dir.exists() and (not out_dir.is_dir() or any(out_dir.iterdir())):
+            raise SetupError(f"Output directory must be empty; refusing to overwrite {out_dir}")
+    except OSError as error:
+        raise SetupError(f"Cannot inspect output directory {out_dir}: {error}") from error
+
+
 def _validate_setup(
     adapter: TaskAdapter, config: schema.ComparisonConfig, variant: str, out_dir: Path,
 ) -> dict[str, Any]:
@@ -101,11 +109,7 @@ def _validate_setup(
             raise SetupError(f"Unknown condition {condition!r}; supported: {adapter.conditions()}")
         if Path(condition).name != condition or condition in (".", ".."):
             raise SetupError(f"condition must be a single directory name: {condition!r}")
-    try:
-        if out_dir.exists() and (not out_dir.is_dir() or any(out_dir.iterdir())):
-            raise SetupError(f"Output directory must be empty; refusing to overwrite {out_dir}")
-    except OSError as error:
-        raise SetupError(f"Cannot inspect output directory {out_dir}: {error}") from error
+    _validate_output_directory(out_dir)
     return {"name": probe.simulator_name, "version": probe.simulator_version}
 
 
