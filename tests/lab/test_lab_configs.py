@@ -10,6 +10,7 @@ from guided_streaming_policy.lab.tasks.registry import get_task
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPARISON = REPO_ROOT / "lab/comparisons/pusht_guidance_v1.json"
 GATE = REPO_ROOT / "lab/gates/pusht_v1.json"
+AGENT_GATE = REPO_ROOT / "lab/gates/pusht_agent_v1.json"
 
 
 class CheckedInConfigTests(unittest.TestCase):
@@ -28,6 +29,16 @@ class CheckedInConfigTests(unittest.TestCase):
         self.assertEqual(gate.min_completed_pairs, cells)
         rule_ids = {rule.id for rule in gate.rules}
         self.assertEqual(rule_ids, {"success_not_worse", "separation_proxy"})
+
+    def test_agent_position_gate_differs_only_in_name_and_signal(self) -> None:
+        primary = schema.load_gate_config(GATE)
+        supplementary = schema.load_gate_config(AGENT_GATE)
+        signals = {rule.id: rule.signal for rule in supplementary.rules if rule.signal}
+        self.assertEqual(signals, {"separation_proxy": "obs.agent_pos"})
+        self.assertEqual(
+            [(r.id, r.threshold) for r in primary.rules],
+            [(r.id, r.threshold) for r in supplementary.rules],
+        )
 
 
 if __name__ == "__main__":
