@@ -260,13 +260,17 @@ def _skipped(episodes: list[schema.Episode]) -> dict[str, str]:
     skipped = {}
     if not any(_nominal_dt(episode) is not None for episode in episodes):
         skipped["time.gap"] = "timebase has no nominal dt"
-    if not any(episode.manifest.get("split") is not None for episode in episodes):
+    demos = [episode for episode in episodes
+             if episode.manifest.get("kind") == schema.KIND_DEMONSTRATION]
+    if not demos:
+        for check in ("split.leakage", "split.duplicate_episode", "split.not_checked"):
+            skipped[check] = "input has no demonstration episodes"
+    elif not any(episode.manifest.get("split") is not None for episode in demos):
         skipped["split.leakage"] = "no split provenance in the input"
     if not any(episode.manifest.get("kind") == schema.KIND_ROLLOUT for episode in episodes):
         skipped["outcome.inconsistent"] = "input has no rollout episodes"
     if not episodes:
-        for check in ("shape.mismatch", "value.non_finite", "time.non_monotonic",
-                      "split.duplicate_episode"):
+        for check in ("shape.mismatch", "value.non_finite", "time.non_monotonic"):
             skipped[check] = "input has no episodes with a recognized kind"
     return skipped
 
@@ -289,11 +293,13 @@ def check_episodes(
             for check in (_shape_mismatch, _non_finite, _non_monotonic, _time_gap, _outcome):
                 findings.extend(check(episode))
     valid.sort(key=lambda episode: str(episode.manifest.get("episode_id", "(unknown)")))
-    for group in _fingerprint_groups(valid):
+    demos = [episode for episode in valid
+             if episode.manifest.get("kind") == schema.KIND_DEMONSTRATION]
+    for group in _fingerprint_groups(demos):
         findings.extend(_leakage(group))
         findings.extend(_duplicates(group))
     skipped = _skipped(valid)
-    if "split.leakage" in skipped:
+    if demos and "split.leakage" in skipped:
         findings.append(_not_checked())
     findings.sort(key=_sort_key)
     counts = {severity: sum(f["severity"] == severity for f in findings)

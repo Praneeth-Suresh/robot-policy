@@ -9,7 +9,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any, NoReturn
 
-from guided_streaming_policy.lab import adapters, doctor, exporter, schema
+from guided_streaming_policy.lab import adapters, doctor, exporter, pairing, schema
 from guided_streaming_policy.lab.adapters import format_policy_rows, load_pins
 from guided_streaming_policy.lab.tasks.base import TaskAdapter
 from guided_streaming_policy.lab.tasks.registry import get_task
@@ -66,6 +66,7 @@ def add_lab_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
     policies.add_argument("--task", default="pusht", help="Task adapter name (default: pusht).")
     _add_doctor_parser(commands)
     _add_run_parser(commands)
+    _add_compare_parser(commands)
 
 
 def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -98,6 +99,33 @@ def _add_run_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> 
     parser.add_argument("--variant", choices=("baseline", "candidate"), required=True)
     parser.add_argument("--out", type=Path, help="Output directory "
                         "(default: out/runs/<comparison name>/<variant>); must be empty.")
+
+
+def _add_compare_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
+    parser = commands.add_parser(
+        "compare", help="Compare paired Policy Trace Lab runs.",
+        description="Policy Trace Lab compares recorded baseline and candidate runs "
+                    "against an explicit condition/seed matrix.",
+        epilog="Exit codes: 0 valid comparison, 1 findings/regression (reserved), "
+               "2 invalid/unreadable/incomplete input, 3 usage or internal error.",
+    )
+    parser.add_argument("baseline_run", type=Path, help="Baseline run directory.")
+    parser.add_argument("candidate_run", type=Path, help="Candidate run directory.")
+    parser.add_argument("--comparison", type=Path, required=True, help="Comparison JSON file.")
+    parser.add_argument("--out", type=Path, help="Output directory "
+                        "(default: out/compare/<comparison name>); preserves earlier reports.")
+
+
+def _run_compare(args: argparse.Namespace) -> int:
+    config = schema.load_comparison_config(args.comparison)
+    out = args.out if args.out is not None else Path("out/compare") / config.name
+    document = pairing.build_comparison(args.baseline_run, args.candidate_run, config, out_dir=out)
+    output = out / "compare.json"
+    adapters.write_report_file(output, schema.canonical_json(document))
+    sys.stdout.write(pairing.render_summary(document) + f"\ncompare.json: {output}\n")
+    for reason in document["invalid_reasons"]:
+        sys.stderr.write(reason + "\n")
+    return pairing.compare_exit_code(document)
 
 
 def _log_trial(message: str) -> None:
@@ -147,10 +175,12 @@ def _run_doctor(args: argparse.Namespace, adapter: TaskAdapter) -> int:
 
 def run_lab(args: argparse.Namespace) -> int:
     """Dispatch a lab command and translate input/usage/internal failures to exit codes."""
-    if args.lab_command not in ("policies", "doctor", "run"):
+    if args.lab_command not in ("policies", "doctor", "run", "compare"):
         sys.stderr.write(f"Unknown Policy Trace Lab command: {args.lab_command}\n")
         return _EXIT_USAGE_OR_INTERNAL
     try:
+        if args.lab_command == "compare":
+            return _run_compare(args)
         if args.lab_command == "run":
             return _run_export(args)
         try:
@@ -161,7 +191,7 @@ def run_lab(args: argparse.Namespace) -> int:
         if args.lab_command == "doctor":
             return _run_doctor(args, adapter)
         return _run_policies(adapter)
-    except (OSError, schema.TraceReadError, exporter.SetupError) as error:
+    except (OSError, schema.ConfigError, schema.TraceReadError, exporter.SetupError) as error:
         sys.stderr.write(f"Cannot read or write Policy Trace Lab input/output: {error}\n")
         return _EXIT_INVALID_INPUT
     except Exception as error:

@@ -28,6 +28,7 @@ __all__ = [
     "step_json_schema",
     "run_manifest_json_schema",
     "doctor_report_json_schema",
+    "compare_result_json_schema",
     "generated_schemas",
     "write_generated_schemas",
     "main",
@@ -248,6 +249,49 @@ def doctor_report_json_schema() -> dict[str, Any]:
     )
 
 
+
+def _compare_entry() -> dict[str, Any]:
+    return _obj({
+        **{key: _str() for key in ("episode_id", "path", "manifest_sha256", "steps_sha256")},
+        "native_success": {"type": ["boolean", "null"]},
+        "terminated": {"type": "boolean"}, "truncated": {"type": "boolean"},
+        "reason": _str(), "length": {"type": "integer", "minimum": 0},
+        "reset_state_fingerprint": {"type": ["string", "null"]},
+    })
+
+
+def _compare_delta() -> dict[str, Any]:
+    counts = ("n", "baseline_successes", "candidate_successes", "wins", "losses", "ties")
+    return _obj({
+        **{key: {"type": "integer", "minimum": 0} for key in counts},
+        **{key: {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+           for key in ("baseline_rate", "candidate_rate")},
+        "delta": {"type": ["number", "null"], "minimum": -1, "maximum": 1},
+        "note": _str(),
+    })
+
+
+def compare_result_json_schema() -> dict[str, Any]:
+    """Build the closed comparison result contract, including partial matrix coverage."""
+    entry = {"anyOf": [_compare_entry(), {"type": "null"}]}
+    pair = _obj({
+        "key": _obj({"task": _str(), "condition": _str(), "seed": {"type": "integer"}}),
+        "status": {"enum": ["completed", "incompatible", "missing"]},
+        "reasons": _array(_str()), "baseline": entry, "candidate": entry,
+    })
+    run = _obj({"path": _str(), "run_id": _str(), "policy": _policy(),
+                "resolved_config_sha256": _str()})
+    coverage_keys = ("expected", "completed", "incompatible", "missing", "extra_episodes")
+    return _document("compare_result.schema.json", _obj({
+        "schema_version": {"const": SCHEMA_VERSION}, "valid": {"type": "boolean"},
+        "invalid_reasons": _array(_str()),
+        "comparison": _strings("name", "sha256", "task", "simulator_version"),
+        "runs": _obj({"baseline": run, "candidate": run}),
+        "coverage": _obj({key: {"type": "integer", "minimum": 0} for key in coverage_keys}),
+        "pairs": _array(pair), "deltas": _obj({"native_success": _compare_delta()}),
+    }))
+
+
 def generated_schemas() -> dict[str, dict[str, Any]]:
     """Map committed schema filenames to fresh schema documents."""
     return {
@@ -256,6 +300,7 @@ def generated_schemas() -> dict[str, dict[str, Any]]:
         "run_manifest.schema.json": run_manifest_json_schema(),
         "doctor_report.schema.json": doctor_report_json_schema(),
         "comparison_config.schema.json": comparison_config_json_schema(),
+        "compare_result.schema.json": compare_result_json_schema(),
     }
 
 

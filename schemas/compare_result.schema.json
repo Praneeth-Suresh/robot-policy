@@ -1,0 +1,430 @@
+{
+  "$id": "compare_result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "comparison": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "simulator_version": {
+          "type": "string"
+        },
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "sha256",
+        "task",
+        "simulator_version"
+      ],
+      "type": "object"
+    },
+    "coverage": {
+      "additionalProperties": false,
+      "properties": {
+        "completed": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expected": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "extra_episodes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incompatible": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "missing": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "expected",
+        "completed",
+        "incompatible",
+        "missing",
+        "extra_episodes"
+      ],
+      "type": "object"
+    },
+    "deltas": {
+      "additionalProperties": false,
+      "properties": {
+        "native_success": {
+          "additionalProperties": false,
+          "properties": {
+            "baseline_rate": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "baseline_successes": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "candidate_rate": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "candidate_successes": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "delta": {
+              "maximum": 1,
+              "minimum": -1,
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "losses": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "n": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "note": {
+              "type": "string"
+            },
+            "ties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "wins": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "n",
+            "baseline_successes",
+            "candidate_successes",
+            "wins",
+            "losses",
+            "ties",
+            "baseline_rate",
+            "candidate_rate",
+            "delta",
+            "note"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "native_success"
+      ],
+      "type": "object"
+    },
+    "invalid_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "pairs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "episode_id": {
+                    "type": "string"
+                  },
+                  "length": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "manifest_sha256": {
+                    "type": "string"
+                  },
+                  "native_success": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "reset_state_fingerprint": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "steps_sha256": {
+                    "type": "string"
+                  },
+                  "terminated": {
+                    "type": "boolean"
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "episode_id",
+                  "path",
+                  "manifest_sha256",
+                  "steps_sha256",
+                  "native_success",
+                  "terminated",
+                  "truncated",
+                  "reason",
+                  "length",
+                  "reset_state_fingerprint"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidate": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "episode_id": {
+                    "type": "string"
+                  },
+                  "length": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "manifest_sha256": {
+                    "type": "string"
+                  },
+                  "native_success": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "reset_state_fingerprint": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "steps_sha256": {
+                    "type": "string"
+                  },
+                  "terminated": {
+                    "type": "boolean"
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "episode_id",
+                  "path",
+                  "manifest_sha256",
+                  "steps_sha256",
+                  "native_success",
+                  "terminated",
+                  "truncated",
+                  "reason",
+                  "length",
+                  "reset_state_fingerprint"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "key": {
+            "additionalProperties": false,
+            "properties": {
+              "condition": {
+                "type": "string"
+              },
+              "seed": {
+                "type": "integer"
+              },
+              "task": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "task",
+              "condition",
+              "seed"
+            ],
+            "type": "object"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "incompatible",
+              "missing"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "status",
+          "reasons",
+          "baseline",
+          "candidate"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "runs": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "policy": {
+              "additionalProperties": false,
+              "properties": {
+                "checkpoint_id": {
+                  "type": "string"
+                },
+                "checkpoint_sha256": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "checkpoint_id",
+                "checkpoint_sha256"
+              ],
+              "type": "object"
+            },
+            "resolved_config_sha256": {
+              "type": "string"
+            },
+            "run_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "run_id",
+            "policy",
+            "resolved_config_sha256"
+          ],
+          "type": "object"
+        },
+        "candidate": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "policy": {
+              "additionalProperties": false,
+              "properties": {
+                "checkpoint_id": {
+                  "type": "string"
+                },
+                "checkpoint_sha256": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "checkpoint_id",
+                "checkpoint_sha256"
+              ],
+              "type": "object"
+            },
+            "resolved_config_sha256": {
+              "type": "string"
+            },
+            "run_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "run_id",
+            "policy",
+            "resolved_config_sha256"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "valid": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema_version",
+    "valid",
+    "invalid_reasons",
+    "comparison",
+    "runs",
+    "coverage",
+    "pairs",
+    "deltas"
+  ],
+  "type": "object"
+}

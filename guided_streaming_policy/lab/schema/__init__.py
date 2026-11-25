@@ -8,6 +8,7 @@ from .config import (
     load_comparison_config,
 )
 from .jsonschemas import (
+    compare_result_json_schema,
     doctor_report_json_schema,
     generated_schemas,
     main,
@@ -56,6 +57,7 @@ __all__ = [
     "step_json_schema",
     "run_manifest_json_schema",
     "doctor_report_json_schema",
+    "compare_result_json_schema",
     "generated_schemas",
     "write_generated_schemas",
     "canonical_json",

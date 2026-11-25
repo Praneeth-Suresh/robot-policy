@@ -15,7 +15,8 @@ from guided_streaming_policy.lab.tasks.base import (
     TunableSpec,
 )
 
-__all__ = ["demo_episode", "rollout_episode", "write_traces", "FakeTask", "comparison_document"]
+__all__ = ["demo_episode", "rollout_episode", "write_traces", "FakeTask", "comparison_document",
+           "comparison_config", "geometry_rollout", "rollout_run"]
 
 _DT_SECONDS = 0.1
 _TIME_DECIMALS = 6
@@ -170,3 +171,68 @@ def comparison_document(seeds: tuple[int, ...] = (0, 1)) -> dict[str, Any]:
                      "candidate": {"policy": "toy/a", "overrides": {"gain": 2.0}}},
         "intended_differences": ["overrides.gain"],
     }
+
+
+def comparison_config(
+    path: Path, *, seeds: tuple[int, ...] = (0, 1), document: dict[str, Any] | None = None,
+) -> schema.ComparisonConfig:
+    """Write canonical explicit comparison JSON and return the validated config."""
+    path.write_text(schema.canonical_json(comparison_document(seeds) if document is None
+                                          else document), encoding="utf-8")
+    return schema.load_comparison_config(path)
+
+
+def geometry_rollout(
+    episode_id: str, *, seed: int = 0, outcome_kind: str = "success", offset: float = 0.0,
+) -> schema.Episode:
+    """Build fixed-start trajectories with known geometry and native outcome variants."""
+    outcomes = {
+        "success": {"native_success": True, "terminated": True,
+                    "truncated": False, "reason": "complete"},
+        "native_fail": {"native_success": False, "terminated": True,
+                        "truncated": False, "reason": "complete"},
+        "truncated": {"native_success": False, "terminated": False,
+                      "truncated": True, "reason": "step_limit"},
+        "crashed": {"native_success": None, "terminated": False,
+                    "truncated": False, "reason": "crashed"},
+    }
+    return rollout_episode(episode_id, seed=seed, condition="c1", offset=offset,
+                           outcome=outcomes[outcome_kind], obstacle={
+                               "id": "point", "kind": "point", "position": [0.0, 0.0],
+                               "radius": 0.0, "units": "px", "frame": "window",
+                               "source": "fixture"})
+
+
+def rollout_run(
+    directory: Path, variant: str, config: schema.ComparisonConfig,
+    episodes: Iterable[schema.Episode], *, resolved_config: dict[str, Any] | None = None,
+) -> Path:
+    """Write a complete run with matching resolved-config digests, without mutating inputs."""
+    import copy
+
+    spec = config.variants[variant]
+    resolved = (resolved_config if resolved_config is not None else {
+        "policy": spec.policy, "entry_point": "toy:run", "settings": {"gain": 1.0,
+                                                                    **spec.overrides}})
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "resolved_config.json").write_text(schema.canonical_json(resolved),
+                                                   encoding="utf-8")
+    policy = {"name": spec.policy, "checkpoint_id": "fixture", "checkpoint_sha256": "fixture"}
+    simulator = {"name": "fixture", "version": config.simulator_version}
+    cells = []
+    for original in episodes:
+        episode = copy.deepcopy(original)
+        episode.manifest.update(task=config.task, policy=policy, simulator=simulator,
+                                resolved_config={"path": "resolved_config.json",
+                                                 "sha256": schema.sha256_json(resolved)})
+        schema.write_episode(episode, directory)
+        cells.append({key: episode.manifest[key] for key in ("episode_id", "condition", "seed")})
+    schema.write_run_manifest({
+        "schema_version": schema.SCHEMA_VERSION, "run_id": f"{config.name}__{variant}",
+        "task": config.task, "comparison": {"name": config.name, "sha256": config.sha256},
+        "variant": variant, "policy": policy, "simulator": simulator,
+        "provenance": {"tool_version": "fixture", "git_commit": "fixture",
+                       "command": "fixture builder", "created_at": _CREATED_AT},
+        "episodes": cells,
+    }, directory)
+    return directory

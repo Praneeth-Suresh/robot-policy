@@ -202,7 +202,8 @@ class DoctorTests(unittest.TestCase):
         episode.manifest["timebase"] = {"mode": "fixed_dt", "unit": "s"}
         self.assertIn({"check": "time.gap", "reason": expected["time.gap"]},
                       _report(episode)["summary"]["checks_skipped"])
-        report = _report(episode, rollout_episode("fixed", offset=2.0, split="val"))
+        report = _report(episode, demo_episode("fixed", offset=2.0, split="val"),
+                         rollout_episode("rollout", offset=3.0))
         self.assertEqual(report["summary"]["checks_skipped"], [])
 
     def test_determinism_and_golden(self) -> None:
@@ -226,3 +227,18 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("schema.missing_required", summary)
         self.assertIn("obs.agent_pos", summary)
         self.assertIn("corrupt", summary)
+
+    def test_rollout_run_has_no_split_findings(self) -> None:
+        for split in (None, "val"):
+            with self.subTest(split=split):
+                report = _report(rollout_episode("a"), rollout_episode("b", split=split))
+                self.assertEqual(report["findings"], [])
+                skipped = {item["check"]: item["reason"]
+                           for item in report["summary"]["checks_skipped"]}
+                for check in ("split.leakage", "split.duplicate_episode", "split.not_checked"):
+                    self.assertEqual(skipped[check], "input has no demonstration episodes")
+                    self.assertNotIn(check, report["summary"]["checks_run"])
+
+    def test_rollouts_do_not_supply_demo_split_provenance_or_duplicates(self) -> None:
+        report = _report(demo_episode("demo"), rollout_episode("rollout", split="val"))
+        self.assertEqual([f["check"] for f in report["findings"]], ["split.not_checked"])

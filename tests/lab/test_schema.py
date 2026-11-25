@@ -94,7 +94,7 @@ class SchemaTests(unittest.TestCase):
     def test_generated_files_match_builders(self) -> None:
         expected_names = {"episode_manifest.schema.json", "episode_step.schema.json",
                           "run_manifest.schema.json", "doctor_report.schema.json",
-                          "comparison_config.schema.json"}
+                          "comparison_config.schema.json", "compare_result.schema.json"}
         self.assertEqual(set(schema.generated_schemas()), expected_names)
         for name, document in schema.generated_schemas().items():
             with self.subTest(name=name):
