@@ -17,7 +17,7 @@ from guided_streaming_policy.lab.tasks.base import (
 
 __all__ = ["demo_episode", "rollout_episode", "write_traces", "FakeTask", "comparison_document",
            "comparison_config", "geometry_rollout", "rollout_run", "gate_document", "gate_config",
-           "gate_comparison", "gate_episodes"]
+           "gate_comparison", "gate_episodes", "report_pipeline"]
 
 _DT_SECONDS = 0.1
 _TIME_DECIMALS = 6
@@ -284,3 +284,42 @@ def gate_episodes() -> list[schema.Episode]:
         for step in episode.steps:
             step["action_executed"]["target"] = [50.0, 0.0]
     return episodes
+
+
+def report_pipeline(root: Path, verdict: str = "REGRESSION") -> tuple[Path, Path]:
+    """Write eight-step paired runs with a known violation at step 3 and full geometry."""
+    from guided_streaming_policy.lab import gate, pairing
+
+    document = comparison_document((1,))
+    document["matrix"]["conditions"] = ["static"]
+    config = comparison_config(root / "comparison.json", document=document)
+    for variant in ("baseline", "candidate"):
+        episode = rollout_episode("episode", n_steps=8, condition="static", seed=1,
+                                  outcome={"native_success": True, "truncated": False})
+        episode.manifest["geometry"] = {
+            "arena": {"size": [100, 100], "units": "px"},
+            "block": {"shapes": [[[-2, -1], [2, -1], [2, 1], [-2, 1]]],
+                      "pose_fields": ["block_pos", "block_angle"]},
+            "goal": {"pose": [60, 60, 0.5]},
+            "obstacles": [{"id": "point", "kind": "virtual_point", "position": [10, 10],
+                           "radius": 2, "units": "px", "frame": "window", "source": "fixture"}],
+        }
+        episode.manifest["fields_present"] += ["geometry", "reward"]
+        for step in episode.steps:
+            step["action_executed"]["target"] = [70, 10]
+            step["reward"] = round(step["step"] / 10, 3)
+        if variant == "candidate" and verdict == "REGRESSION":
+            episode.steps[3]["action_executed"]["target"] = [15, 10]
+        rollout_run(root / variant, variant, config, [episode])
+    out = root / "compare"
+    out.mkdir()
+    compare = pairing.build_comparison(root / "baseline", root / "candidate", config, out_dir=out)
+    compare_path = out / "compare.json"
+    compare_path.write_text(schema.canonical_json(compare))
+    rules = gate_document()
+    rules["min_completed_pairs"] = 2 if verdict == "BLOCKED" else 1
+    config_gate = gate_config(root / "gate-config.json", rules)
+    result = gate.evaluate_gate(compare, config_gate, base_dir=out)
+    gate_path = out / "gate.json"
+    gate_path.write_text(schema.canonical_json(result))
+    return compare_path, gate_path

@@ -145,7 +145,8 @@ def _geometry(module: ModuleType) -> dict[str, Any]:
         "goal": {"pose": [_WINDOW_SIZE_PX / _COORDINATE_HALVES,
                           _WINDOW_SIZE_PX / _COORDINATE_HALVES, _GOAL_ANGLE_RAD],
                  "units": "px (angle rad)", "frame": frame},
-        "block": {"shapes": _block_shapes(), "frame": "block_body"},
+        "block": {"shapes": _block_shapes(), "frame": "block_body",
+                  "pose_fields": ["block_pos", "block_angle"]},
         "arena": {"size": [_WINDOW_SIZE_PX, _WINDOW_SIZE_PX], "units": "px"},
     }
 

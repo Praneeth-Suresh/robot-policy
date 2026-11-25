@@ -135,6 +135,7 @@ class RunnerHookTests(unittest.TestCase):
         self.assertEqual(record.reason, "coverage_reached")
         self.assertEqual(record.geometry["obstacles"][0]["position"], [100.0, 200.0])
         self.assertEqual(record.geometry["obstacles"][0]["radius"], 15.36)
+        self.assertEqual(record.geometry["block"]["pose_fields"], ["block_pos", "block_angle"])
         self.assertEqual(record.geometry["block"]["shapes"][0],
                          [[-60.0, 30.0], [60.0, 30.0], [60.0, 0.0], [-60.0, 0.0]])
         self.assertIsNotNone(record.reset_state_fingerprint)

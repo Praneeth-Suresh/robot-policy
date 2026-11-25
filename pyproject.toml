@@ -106,3 +106,6 @@ files = ["guided_streaming_policy/lab"]
 [tool.vulture]
 paths = ["guided_streaming_policy/lab"]
 min_confidence = 80
+
+[tool.setuptools.package-data]
+"guided_streaming_policy.lab" = ["assets/*.css", "assets/*.js", "assets/*.svg"]

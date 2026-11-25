@@ -9,7 +9,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any, NoReturn
 
-from guided_streaming_policy.lab import adapters, doctor, exporter, gate, pairing, schema
+from guided_streaming_policy.lab import adapters, doctor, exporter, gate, pairing, report, schema
 from guided_streaming_policy.lab.adapters import format_policy_rows, load_pins
 from guided_streaming_policy.lab.tasks.base import TaskAdapter
 from guided_streaming_policy.lab.tasks.registry import get_task
@@ -68,6 +68,7 @@ def add_lab_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
     _add_run_parser(commands)
     _add_compare_parser(commands)
     _add_gate_parser(commands)
+    _add_report_parser(commands)
 
 
 def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -129,6 +130,33 @@ def _add_gate_parser(commands: argparse._SubParsersAction[LabArgumentParser]) ->
     parser.add_argument("--out", type=Path,
                         help="Report directory (default: out/gate/<gate name>); "
                              "preserves earlier reports.")
+
+
+def _add_report_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
+    parser = commands.add_parser(
+        "report", help="Write an offline Policy Trace Lab replay report.",
+        description="Policy Trace Lab renders recorded comparison and optional gate evidence "
+                    "with paired trace replay into one offline report.html file.",
+        epilog="Exit codes: 0 written, 1 findings/regression (reserved), "
+               "2 invalid/unreadable/incomplete input or overwrite refusal, "
+               "3 usage or internal error.",
+    )
+    parser.add_argument("compare_json", type=Path, help="Recorded compare.json file.")
+    parser.add_argument("--gate", type=Path, help="Recorded gate.json result file.")
+    parser.add_argument("--out", type=Path,
+                        help="Output directory (default: out/report/<comparison name>).")
+
+
+def _run_report(args: argparse.Namespace) -> int:
+    comparison = report.load_result(args.compare_json)
+    result = report.load_result(args.gate, gate_result=True) if args.gate is not None else None
+    page = report.render_report(comparison, result, base_dir=args.compare_json.parent)
+    out = (args.out if args.out is not None
+           else Path("out/report") / comparison["comparison"]["name"])
+    output = out / "report.html"
+    adapters.write_report_file(output, page)
+    sys.stdout.write(f"report.html: {output}\n")
+    return _EXIT_OK
 
 
 def _run_gate(args: argparse.Namespace) -> int:
@@ -201,10 +229,12 @@ def _run_doctor(args: argparse.Namespace, adapter: TaskAdapter) -> int:
 
 def run_lab(args: argparse.Namespace) -> int:
     """Dispatch a lab command and translate input/usage/internal failures to exit codes."""
-    if args.lab_command not in ("policies", "doctor", "run", "compare", "gate"):
+    if args.lab_command not in ("policies", "doctor", "run", "compare", "gate", "report"):
         sys.stderr.write(f"Unknown Policy Trace Lab command: {args.lab_command}\n")
         return _EXIT_USAGE_OR_INTERNAL
     try:
+        if args.lab_command == "report":
+            return _run_report(args)
         if args.lab_command == "gate":
             return _run_gate(args)
         if args.lab_command == "compare":
