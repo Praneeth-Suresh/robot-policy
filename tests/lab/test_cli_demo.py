@@ -87,7 +87,7 @@ class DemoCLITests(unittest.TestCase):
         code, output, _ = _invoke(["--help"])
         self.assertEqual(code, 0)
         for text in ("Policy Trace Lab", "CPU", "default install", "0 pass", "1 regression",
-                     "2 invalid/incomplete", "3 usage error"):
+                     "2 invalid or incomplete", "3 usage or internal error"):
             self.assertIn(text, " ".join(output.split()))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

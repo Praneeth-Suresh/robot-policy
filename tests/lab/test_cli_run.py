@@ -100,7 +100,8 @@ class RunCLITests(unittest.TestCase):
         for phrase in ("Policy Trace Lab", "simulator", "pusht_cchi_v7_replay.zarr.zip",
                        "pusht_state_1000ep_si.ckpt", "CCG_V6_ep200.pth",
                        "pusht_state_100ep_dp.ckpt", "pusht_state_flow_100ep.ckpt",
-                       "0", "1", "2", "3"):
+                       "0 all trials recorded (crashed trials are recorded and logged)",
+                       "2 setup invalid", "3 usage or internal error"):
             self.assertIn(phrase, help_text)
 
     def test_internal_error_is_three(self) -> None:

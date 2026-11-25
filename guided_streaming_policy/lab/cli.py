@@ -23,7 +23,8 @@ _EXIT_USAGE_OR_INTERNAL = 3
 _LAB_HELP = "Policy Trace Lab: validate robot data, compare policies, replay regressions."
 _FIXTURES_MISSING = "fixtures not found; run from a source checkout of the repository"
 _DOCTOR_EXITS = (
-    "Exit codes: 0 clean, 1 errors found, 2 input unreadable, 3 usage or internal error."
+    "Exit codes: 0 clean (no errors), 1 errors found, "
+    "2 input unreadable or output would overwrite, 3 usage or internal error."
 )
 
 
@@ -52,7 +53,9 @@ def add_lab_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
     subparsers._parser_class = LabArgumentParser
     try:
         parser = subparsers.add_parser(
-            "lab", help=_LAB_HELP, description=_LAB_HELP, epilog=_DOCTOR_EXITS
+            "lab", help=_LAB_HELP, description=_LAB_HELP,
+            epilog="Exit codes: 0 success; 1 findings or regression (doctor, gate, demo); "
+                   "2 invalid, unreadable or incomplete input; 3 usage or internal error."
         )
     finally:
         subparsers._parser_class = parser_class
@@ -84,7 +87,8 @@ def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) 
     parser.add_argument("input", type=Path, help="Trace directory or native demonstration input.")
     parser.add_argument("--task", default="pusht", help="Task adapter name (default: pusht).")
     parser.add_argument("--out", type=Path, default=Path("out/doctor"),
-                        help="Report directory (default: out/doctor). Preserves earlier outputs.")
+                        help="Report directory (default: out/doctor). "
+                             "Existing files with different content are never overwritten.")
 
 
 def _add_run_parser(commands: argparse._SubParsersAction[LabArgumentParser], task: str) -> None:
@@ -95,14 +99,15 @@ def _add_run_parser(commands: argparse._SubParsersAction[LabArgumentParser], tas
                     "conditions and seeds. Requires the task's simulator packages and assets. "
                     f"Default task assets: {assets}. "
                     "Only the selected policy's checkpoints are required.",
-        epilog="Exit codes: 0 all trials recorded (including logged crashes), "
-               "1 findings/regression, 2 invalid/unreadable/incomplete input, "
+        epilog="Exit codes: 0 all trials recorded (crashed trials are recorded and logged), "
+               "2 setup invalid, "
                "3 usage or internal error.",
     )
     parser.add_argument("--comparison", type=Path, required=True, help="Comparison JSON file.")
     parser.add_argument("--variant", choices=("baseline", "candidate"), required=True)
     parser.add_argument("--out", type=Path, help="Output directory "
-                        "(default: out/runs/<comparison name>/<variant>); must be empty.")
+                        "(default: out/runs/<comparison name>/<variant>); must be empty. "
+                        "Existing files with different content are never overwritten.")
 
 
 def _add_compare_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -110,28 +115,29 @@ def _add_compare_parser(commands: argparse._SubParsersAction[LabArgumentParser])
         "compare", help="Compare paired Policy Trace Lab runs.",
         description="Policy Trace Lab compares recorded baseline and candidate runs "
                     "against an explicit condition/seed matrix.",
-        epilog="Exit codes: 0 valid comparison, 1 findings/regression (reserved), "
-               "2 invalid/unreadable/incomplete input, 3 usage or internal error.",
+        epilog="Exit codes: 0 comparable, 2 invalid comparison or unreadable input, "
+               "3 usage or internal error.",
     )
     parser.add_argument("baseline_run", type=Path, help="Baseline run directory.")
     parser.add_argument("candidate_run", type=Path, help="Candidate run directory.")
     parser.add_argument("--comparison", type=Path, required=True, help="Comparison JSON file.")
     parser.add_argument("--out", type=Path, help="Output directory "
-                        "(default: out/compare/<comparison name>); preserves earlier reports.")
+                        "(default: out/compare/<comparison name>). "
+                        "Existing files with different content are never overwritten.")
 
 
 def _add_gate_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
     parser = commands.add_parser(
         "gate", help="Evaluate a Policy Trace Lab rollout gate.",
         description="Policy Trace Lab evaluates recorded paired runs against gate rules.",
-        epilog="Exit codes: 0 pass, 1 regression, 2 invalid/incomplete/blocked, 3 usage error "
-               "or internal error.",
+        epilog="Exit codes: 0 pass, 1 regression, "
+               "2 invalid, incomplete or a required check unknown, 3 usage or internal error.",
     )
     parser.add_argument("compare_json", type=Path, help="Recorded compare.json file.")
     parser.add_argument("--gate", type=Path, required=True, help="Gate configuration JSON file.")
     parser.add_argument("--out", type=Path,
-                        help="Report directory (default: out/gate/<gate name>); "
-                             "preserves earlier reports.")
+                        help="Report directory (default: out/gate/<gate name>). "
+                             "Existing files with different content are never overwritten.")
 
 
 def _add_report_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -139,14 +145,14 @@ def _add_report_parser(commands: argparse._SubParsersAction[LabArgumentParser]) 
         "report", help="Write an offline Policy Trace Lab replay report.",
         description="Policy Trace Lab renders recorded comparison and optional gate evidence "
                     "with paired trace replay into one offline report.html file.",
-        epilog="Exit codes: 0 written, 1 findings/regression (reserved), "
-               "2 invalid/unreadable/incomplete input or overwrite refusal, "
+        epilog="Exit codes: 0 written, 2 unreadable input or overwrite refused, "
                "3 usage or internal error.",
     )
     parser.add_argument("compare_json", type=Path, help="Recorded compare.json file.")
     parser.add_argument("--gate", type=Path, help="Recorded gate.json result file.")
     parser.add_argument("--out", type=Path,
-                        help="Output directory (default: out/report/<comparison name>).")
+                        help="Output directory (default: out/report/<comparison name>). "
+                             "Existing files with different content are never overwritten.")
 
 
 def _add_demo_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -154,10 +160,12 @@ def _add_demo_parser(commands: argparse._SubParsersAction[LabArgumentParser]) ->
         "demo", help="Run the offline Policy Trace Lab synthetic fixture demo.",
         description="Policy Trace Lab synthetic fixture demo needs only the CPU and the "
                     "default install. Synthetic fixture data. Not a benchmark.",
-        epilog="Exit codes: 0 pass, 1 regression, 2 invalid/incomplete, 3 usage error.",
+        epilog="Exit codes: same as gate: 0 pass, 1 regression, 2 invalid or incomplete, "
+               "3 usage or internal error. The bundled fixture exits 1.",
     )
     parser.add_argument("--out", type=Path, required=True,
-                        help="Output directory; preserves files.")
+                        help="Output directory. Identical existing files are kept; "
+                             "different files are never overwritten.")
     parser.add_argument("--task", default="pusht", help="Task adapter name (default: pusht).")
 
 

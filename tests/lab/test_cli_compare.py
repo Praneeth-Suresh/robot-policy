@@ -109,7 +109,8 @@ class CompareCLITests(unittest.TestCase):
             main(["lab", "compare", "--help"])
         self.assertEqual(caught.exception.code, 0)
         text = " ".join(output.getvalue().split())
-        for phrase in ("Policy Trace Lab", "Exit codes:", "0", "1", "2", "3"):
+        for phrase in ("Policy Trace Lab", "Exit codes:", "0 comparable",
+                       "2 invalid comparison or unreadable input", "3 usage or internal error"):
             self.assertIn(phrase, text)
         with patch("guided_streaming_policy.lab.cli.pairing.build_comparison",
                    side_effect=RuntimeError("unexpected")):

@@ -91,8 +91,8 @@ class GateCLITests(unittest.TestCase):
             "Policy Trace Lab",
             "0 pass",
             "1 regression",
-            "2 invalid/incomplete/blocked",
-            "3 usage error",
+            "2 invalid, incomplete or a required check unknown",
+            "3 usage or internal error",
         ):
             self.assertIn(text, output)
 
