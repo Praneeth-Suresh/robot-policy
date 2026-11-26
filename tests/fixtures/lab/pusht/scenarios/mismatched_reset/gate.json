@@ -1,0 +1,27 @@
+{
+  "max_incompatible_pairs": 0,
+  "max_missing_pairs": 0,
+  "min_completed_pairs": 2,
+  "name": "mismatched_reset",
+  "rules": [
+    {
+      "compare": "candidate_minus_baseline",
+      "id": "success_not_worse",
+      "metric": "native_success_rate",
+      "required": true,
+      "threshold": -0.1,
+      "units": "fraction of completed pairs"
+    },
+    {
+      "id": "separation_proxy",
+      "metric": "obstacle_separation_min",
+      "min_coverage": 0.95,
+      "required": true,
+      "signal": "action_executed.target",
+      "threshold": 30.72,
+      "tolerance": 0.0,
+      "units": "px"
+    }
+  ],
+  "schema_version": "0.1"
+}

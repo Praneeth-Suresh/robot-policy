@@ -1,0 +1,132 @@
+{
+  "$id": "comparison_config.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "intended_differences": {
+      "items": {
+        "pattern": "^(policy|overrides\\..+)$",
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "matrix": {
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "items": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "seeds": {
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "conditions",
+        "seeds"
+      ],
+      "type": "object"
+    },
+    "name": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "simulator_version": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "task": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "variants": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "additionalProperties": false,
+          "properties": {
+            "overrides": {
+              "additionalProperties": {
+                "type": [
+                  "boolean",
+                  "integer",
+                  "number",
+                  "string"
+                ]
+              },
+              "type": "object"
+            },
+            "policy": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            }
+          },
+          "required": [
+            "policy"
+          ],
+          "type": "object"
+        },
+        "candidate": {
+          "additionalProperties": false,
+          "properties": {
+            "overrides": {
+              "additionalProperties": {
+                "type": [
+                  "boolean",
+                  "integer",
+                  "number",
+                  "string"
+                ]
+              },
+              "type": "object"
+            },
+            "policy": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            }
+          },
+          "required": [
+            "policy"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "task",
+    "simulator_version",
+    "matrix",
+    "variants",
+    "intended_differences"
+  ],
+  "type": "object"
+}

@@ -7,6 +7,7 @@
 | Reusable policy core | Sequence windows, normalization, interpolation, flow-policy building blocks, CAR guidance | Dataset-specific loading, benchmark rendering, experiment orchestration | `guided_streaming_policy/core/` |
 | Experiment adapters | Dataset loading, model construction, training and inference procedures for one benchmark | General-purpose policy abstractions | `Push-T/`, `Robomimic/` |
 | CLI and configuration | Discoverable commands, task validation, environment checks, command dispatch | Core model behavior and benchmark internals | `guided_streaming_policy/cli.py` |
+| Policy Trace Lab | Versioned episode traces, Dataset Doctor, paired comparison, rollout gate, offline replay report, task-adapter contract, reference-policy registry and pins | Simulator physics, training, policy math | `guided_streaming_policy/lab/` (`gsp lab`) |
 | Verification | Unit tests, compile checks, and deterministic Beryl checks | Experiment results and external simulator behavior | `tests/`, `.beryl/scripts/check.sh` |
 
 ## Boundary Rules
@@ -26,6 +27,12 @@
 7. Keep deployment concerns such as timestamped observations, scheduled future
    actions, and inference latency at the policy/environment boundary; do not
    hide them inside reusable mathematical primitives.
+
+8. The lab (`guided_streaming_policy/lab/`) may import research code only inside
+   `lab/tasks/<task>/`; research code never imports the lab. Core lab modules
+   use only the standard library and contain no task names. Import edges between
+   lab modules are fixed by `tests/lab/test_architecture.py`; a new task is one
+   folder under `lab/tasks/` plus one registry line.
 
 ## Public Interfaces
 
@@ -83,6 +90,14 @@ benchmark scripts retain ownership of simulator-specific details.
   Robosuite 1.5.2, MuJoCo 3.4, and the current Robomimic source. Existing
   datasets and checkpoints require replay validation because simulator
   trajectories are not guaranteed to be numerically identical.
+
+- 2026-11-26: Add Policy Trace Lab as `gsp lab`, because paired, gated,
+  replayable evaluation needs one trace contract shared by data checks,
+  comparison and replay. Reference policies are wrapped, never edited; the
+  exporter records runs by proxying the runner's module-global `env`.
+- 2026-11-26: Lab configs are JSON and the default install gains no dependency,
+  because the standard library has no YAML parser. Dev tools (`ruff`, `mypy`,
+  `vulture`, `jsonschema`) live in the optional `dev` extra.
 
 ## Pressure Points
 

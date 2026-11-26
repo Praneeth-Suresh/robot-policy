@@ -66,6 +66,13 @@ robomimic = [
   "tqdm==4.67.1",
 ]
 
+dev = [
+  "jsonschema>=4.21",
+  "mypy>=1.10",
+  "ruff>=0.5",
+  "vulture>=2.11",
+]
+
 [project.scripts]
 gsp = "guided_streaming_policy.cli:main"
 
@@ -80,3 +87,25 @@ override-dependencies = [
   "diffusers==0.36.0",
   "huggingface-hub==1.33.0",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "C90", "ARG", "T20", "ERA", "I"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["guided_streaming_policy/lab"]
+
+[tool.vulture]
+paths = ["guided_streaming_policy/lab"]
+min_confidence = 80
+
+[tool.setuptools.package-data]
+"guided_streaming_policy.lab" = ["assets/*.css", "assets/*.js", "assets/*.svg"]

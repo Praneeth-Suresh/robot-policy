@@ -1,0 +1,31 @@
+{
+  "intended_differences": [
+    "overrides.max_guidance_scale"
+  ],
+  "matrix": {
+    "conditions": [
+      "static"
+    ],
+    "seeds": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "name": "missing_signal",
+  "schema_version": "0.1",
+  "simulator_version": "7.2.0",
+  "task": "pusht",
+  "variants": {
+    "baseline": {
+      "policy": "pusht/naive"
+    },
+    "candidate": {
+      "overrides": {
+        "max_guidance_scale": 0.0
+      },
+      "policy": "pusht/naive"
+    }
+  }
+}

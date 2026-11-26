@@ -6,11 +6,13 @@
 | --- | --- | --- | --- |
 | Markdown sanity | `./.beryl/scripts/check-md.sh` | available | Unclosed fences and tabs |
 | Beryl deterministic gate | `./.beryl/scripts/check.sh` | available | Beryl surface, markdown, secrets, and project checks |
-| Unit tests | `uv run python -m unittest discover -v` | available after UV sync | Focused tests in `tests/` |
+| Unit tests | `python -m unittest discover -s tests -v` (lab tests: `tests/lab/`) | available after UV sync | Focused tests in `tests/` |
 | Compile smoke check | `uv run python -m compileall -q guided_streaming_policy Push-T tests` | available after UV sync | Catches syntax/import compilation errors |
 | Environment check | `gsp check-env` | available after install | Dependency and asset readiness |
-| Lint | not configured | unavailable | Do not invent a formatter or linter |
-| Typecheck | not configured | unavailable | Python project has no typecheck command |
+| Lint | `python -m ruff check guided_streaming_policy/lab tests/lab` | available after `--extra dev` | Lab package and its tests only |
+| Typecheck | `python -m mypy` | available after `--extra dev` | Strict, lab package only |
+| Dead code | `python -m vulture` | available after `--extra dev` | Lab package only |
+| Lab offline demo | `gsp lab demo --out out/demo` | available after install | Exits 1 by design (seeded regression) |
 | Robomimic runtime | Linux + modern MuJoCo + OSMesa | platform-dependent | Not runnable on this Windows host |
 
 ## Default Loop

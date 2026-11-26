@@ -1,0 +1,7 @@
+{
+  "entry_point": "inference.static.inference_naive:run_naive_inference",
+  "policy": "pusht/naive",
+  "settings": {
+    "max_guidance_scale": 6.0
+  }
+}

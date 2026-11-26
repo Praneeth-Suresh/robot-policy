@@ -1,0 +1,122 @@
+{
+  "comparison": {
+    "name": "toy-comparison",
+    "sha256": "270d13cadadbe045d725bc5c79e24c47ad765f5b69f1bd4f2d6f35322b817811",
+    "simulator_version": "1.0",
+    "task": "toy"
+  },
+  "coverage": {
+    "completed": 2,
+    "expected": 2,
+    "extra_episodes": 0,
+    "incompatible": 0,
+    "missing": 0
+  },
+  "deltas": {
+    "native_success": {
+      "baseline_rate": 0.5,
+      "baseline_successes": 1,
+      "candidate_rate": 0.5,
+      "candidate_successes": 1,
+      "delta": 0.0,
+      "losses": 1,
+      "n": 2,
+      "note": "native_success null (including crashed trials) counts as not successful.",
+      "ties": 0,
+      "wins": 1
+    }
+  },
+  "invalid_reasons": [],
+  "pairs": [
+    {
+      "baseline": {
+        "episode_id": "a",
+        "length": 6,
+        "manifest_sha256": "c1a140b3e175beeb872bfc04257ae3c70e5b6d1c279a407c7bf6e9eb23fe72a7",
+        "native_success": true,
+        "path": "../runs/baseline/a",
+        "reason": "complete",
+        "reset_state_fingerprint": "fixture-reset",
+        "steps_sha256": "082a6c6e460280f84502d27377ca7f122e5547e4fc146026f1c87e0311bf8183",
+        "terminated": true,
+        "truncated": false
+      },
+      "candidate": {
+        "episode_id": "a",
+        "length": 6,
+        "manifest_sha256": "8339b46b9f2d1acefcd85ab025fc66d62ec359fb8c0d9f9fdd63d4289b76a859",
+        "native_success": null,
+        "path": "../runs/candidate/a",
+        "reason": "crashed",
+        "reset_state_fingerprint": "fixture-reset",
+        "steps_sha256": "082a6c6e460280f84502d27377ca7f122e5547e4fc146026f1c87e0311bf8183",
+        "terminated": false,
+        "truncated": false
+      },
+      "key": {
+        "condition": "c1",
+        "seed": 0,
+        "task": "toy"
+      },
+      "reasons": [],
+      "status": "completed"
+    },
+    {
+      "baseline": {
+        "episode_id": "b",
+        "length": 6,
+        "manifest_sha256": "504fb0d3ce80dbdef0f817edae1ea6df260a83660388e3ad6e8c07f09b4f9f7d",
+        "native_success": false,
+        "path": "../runs/baseline/b",
+        "reason": "step_limit",
+        "reset_state_fingerprint": "fixture-reset",
+        "steps_sha256": "082a6c6e460280f84502d27377ca7f122e5547e4fc146026f1c87e0311bf8183",
+        "terminated": false,
+        "truncated": true
+      },
+      "candidate": {
+        "episode_id": "b",
+        "length": 6,
+        "manifest_sha256": "a41e2f625cc8acb62061a54f7cad4bf0c4b8d4a213ac8ccc58f57195406d7087",
+        "native_success": true,
+        "path": "../runs/candidate/b",
+        "reason": "complete",
+        "reset_state_fingerprint": "fixture-reset",
+        "steps_sha256": "082a6c6e460280f84502d27377ca7f122e5547e4fc146026f1c87e0311bf8183",
+        "terminated": true,
+        "truncated": false
+      },
+      "key": {
+        "condition": "c1",
+        "seed": 1,
+        "task": "toy"
+      },
+      "reasons": [],
+      "status": "completed"
+    }
+  ],
+  "runs": {
+    "baseline": {
+      "path": "../runs/baseline",
+      "policy": {
+        "checkpoint_id": "fixture",
+        "checkpoint_sha256": "fixture",
+        "name": "toy/a"
+      },
+      "resolved_config_sha256": "9bc191225777a626fa34cfd94cbbd1c5733994d6c6c78be6963bcae89f43ddfa",
+      "run_id": "toy-comparison__baseline"
+    },
+    "candidate": {
+      "path": "../runs/candidate",
+      "policy": {
+        "checkpoint_id": "fixture",
+        "checkpoint_sha256": "fixture",
+        "name": "toy/a"
+      },
+      "resolved_config_sha256": "750164fe73b7a44dd9867cea69da555d564fd0f26e23d5941f397c862e574168",
+      "run_id": "toy-comparison__candidate"
+    }
+  },
+  "schema_version": "0.1",
+  "valid": true
+}

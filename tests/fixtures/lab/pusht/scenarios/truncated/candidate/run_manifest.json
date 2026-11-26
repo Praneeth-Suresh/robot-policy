@@ -1,0 +1,48 @@
+{
+  "comparison": {
+    "name": "truncated",
+    "sha256": "3a4bb9416991480902b38a636e91f1137f6ff07c2aca4763554fd94b1b80e57b"
+  },
+  "episodes": [
+    {
+      "condition": "static",
+      "episode_id": "static__0",
+      "seed": 0
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__1",
+      "seed": 1
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__2",
+      "seed": 2
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__3",
+      "seed": 3
+    }
+  ],
+  "policy": {
+    "checkpoint_id": "synthetic-fixture",
+    "checkpoint_sha256": "synthetic-fixture",
+    "name": "pusht/naive"
+  },
+  "provenance": {
+    "command": "synthetic fixture builder",
+    "created_at": "2026-01-01T00:00:00Z",
+    "git_commit": "fixture",
+    "tool_version": "fixture"
+  },
+  "run_id": "truncated__candidate",
+  "schema_version": "0.1",
+  "simulator": {
+    "name": "pymunk",
+    "version": "7.2.0"
+  },
+  "synthetic": true,
+  "task": "pusht",
+  "variant": "candidate"
+}

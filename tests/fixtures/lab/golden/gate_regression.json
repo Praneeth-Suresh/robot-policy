@@ -1,0 +1,88 @@
+{
+  "blocked_reasons": [],
+  "comparison": {
+    "name": "toy-comparison",
+    "sha256": "b4d6397e65c0a193db394521502a73ac30726025829c77b7f8a947ffa414033f"
+  },
+  "coverage": {
+    "completed": 3,
+    "expected": 3,
+    "incompatible": 0,
+    "max_incompatible_pairs": 0,
+    "max_missing_pairs": 0,
+    "min_completed_pairs": 3,
+    "missing": 0
+  },
+  "exit_code": 1,
+  "gate": {
+    "name": "toy-gate",
+    "sha256": "7b3232e8b19eaee3938582f6fe472abac748d7f8cc7797c2e75d565230188dc7"
+  },
+  "regressions": [
+    {
+      "baseline": {
+        "episode_id": "1",
+        "path": "../baseline/1"
+      },
+      "candidate": {
+        "episode_id": "1",
+        "path": "../candidate/1"
+      },
+      "categories": [
+        "constraint_fail"
+      ],
+      "category": "constraint_fail",
+      "first_violation": {
+        "step": 2,
+        "time": 0.2
+      },
+      "key": {
+        "condition": "c1",
+        "seed": 1,
+        "task": "toy"
+      },
+      "replay_basis": "first_violation",
+      "replay_step": 2,
+      "rule_ids": [
+        "separation_proxy"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "baseline_value": 1.0,
+      "candidate_value": 1.0,
+      "delta": 0.0,
+      "id": "success_not_worse",
+      "losses": 0,
+      "metric": "native_success_rate",
+      "required": true,
+      "samples": 3,
+      "threshold": -0.1,
+      "ties": 3,
+      "units": "fraction of completed pairs",
+      "verdict": "pass",
+      "wins": 0
+    },
+    {
+      "baseline_value": 50.0,
+      "candidate_value": 10.0,
+      "coverage": 1.0,
+      "delta": -40.0,
+      "id": "separation_proxy",
+      "losses": 1,
+      "metric": "obstacle_separation_min",
+      "required": true,
+      "samples": 3,
+      "signal": "action_executed.target",
+      "threshold": 30.72,
+      "ties": 2,
+      "tolerance": 0.0,
+      "units": "px",
+      "verdict": "fail",
+      "wins": 0
+    }
+  ],
+  "schema_version": "0.1",
+  "verdict": "REGRESSION"
+}

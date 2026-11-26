@@ -1,0 +1,450 @@
+{
+  "$id": "gate_result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "PASS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exit_code": {
+            "const": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "REGRESSION"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exit_code": {
+            "const": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "BLOCKED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "exit_code": {
+            "const": 2
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "blocked_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "comparison": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "coverage": {
+      "additionalProperties": false,
+      "properties": {
+        "completed": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expected": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incompatible": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_incompatible_pairs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_missing_pairs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "min_completed_pairs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "missing": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "expected",
+        "completed",
+        "incompatible",
+        "missing",
+        "min_completed_pairs",
+        "max_missing_pairs",
+        "max_incompatible_pairs"
+      ],
+      "type": "object"
+    },
+    "exit_code": {
+      "enum": [
+        0,
+        1,
+        2
+      ]
+    },
+    "gate": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "regressions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline": {
+            "additionalProperties": false,
+            "properties": {
+              "episode_id": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "episode_id",
+              "path"
+            ],
+            "type": "object"
+          },
+          "candidate": {
+            "additionalProperties": false,
+            "properties": {
+              "episode_id": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "episode_id",
+              "path"
+            ],
+            "type": "object"
+          },
+          "categories": {
+            "items": {
+              "enum": [
+                "crashed",
+                "truncated",
+                "native_fail",
+                "constraint_fail"
+              ]
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "category": {
+            "enum": [
+              "crashed",
+              "truncated",
+              "native_fail",
+              "constraint_fail"
+            ]
+          },
+          "first_violation": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "step": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "time": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "step",
+                  "time"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "key": {
+            "additionalProperties": false,
+            "properties": {
+              "condition": {
+                "type": "string"
+              },
+              "seed": {
+                "type": "integer"
+              },
+              "task": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "task",
+              "condition",
+              "seed"
+            ],
+            "type": "object"
+          },
+          "replay_basis": {
+            "enum": [
+              "first_violation",
+              "episode_end"
+            ]
+          },
+          "replay_step": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rule_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "key",
+          "category",
+          "categories",
+          "rule_ids",
+          "first_violation",
+          "replay_step",
+          "replay_basis",
+          "baseline",
+          "candidate"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "rules": {
+      "items": {
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "else": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "tolerance"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "coverage"
+                    ]
+                  }
+                ]
+              }
+            },
+            "if": {
+              "properties": {
+                "metric": {
+                  "const": "obstacle_separation_min"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "tolerance",
+                "coverage"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "verdict": {
+                  "const": "unknown"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "reason"
+              ]
+            }
+          }
+        ],
+        "description": "Pass iff candidate_rate - baseline_rate >= threshold over completed pairs. A negative threshold tolerates that drop; zero completed pairs means unknown. Candidate verdict: fail if any episode fails, else unknown if any is unknown, else pass. Distances below threshold - tolerance fail; insufficient min_coverage means unknown. Units must equal every obstacle's units or the episode is unknown (units mismatch). Baseline measurements and paired minimum deltas do not affect verdicts.",
+        "properties": {
+          "baseline_value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "candidate_value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "coverage": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "delta": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "losses": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "metric": {
+            "enum": [
+              "native_success_rate",
+              "obstacle_separation_min"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "samples": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "signal": {
+            "type": "string"
+          },
+          "threshold": {
+            "type": "number"
+          },
+          "ties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tolerance": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "units": {
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "pass",
+              "fail",
+              "unknown"
+            ]
+          },
+          "wins": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "metric",
+          "required",
+          "verdict",
+          "units",
+          "threshold",
+          "baseline_value",
+          "candidate_value",
+          "delta",
+          "samples",
+          "wins",
+          "losses",
+          "ties"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "verdict": {
+      "enum": [
+        "PASS",
+        "REGRESSION",
+        "BLOCKED"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "gate",
+    "comparison",
+    "verdict",
+    "exit_code",
+    "blocked_reasons",
+    "coverage",
+    "rules",
+    "regressions"
+  ],
+  "type": "object"
+}

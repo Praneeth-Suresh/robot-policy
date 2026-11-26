@@ -1,0 +1,48 @@
+{
+  "comparison": {
+    "name": "missing_signal",
+    "sha256": "7ffce5de3af5a8e3c6106ef4f35f8f66b58f518a644afee89db7e18fcbf3ba74"
+  },
+  "episodes": [
+    {
+      "condition": "static",
+      "episode_id": "static__0",
+      "seed": 0
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__1",
+      "seed": 1
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__2",
+      "seed": 2
+    },
+    {
+      "condition": "static",
+      "episode_id": "static__3",
+      "seed": 3
+    }
+  ],
+  "policy": {
+    "checkpoint_id": "synthetic-fixture",
+    "checkpoint_sha256": "synthetic-fixture",
+    "name": "pusht/naive"
+  },
+  "provenance": {
+    "command": "synthetic fixture builder",
+    "created_at": "2026-01-01T00:00:00Z",
+    "git_commit": "fixture",
+    "tool_version": "fixture"
+  },
+  "run_id": "missing_signal__baseline",
+  "schema_version": "0.1",
+  "simulator": {
+    "name": "pymunk",
+    "version": "7.2.0"
+  },
+  "synthetic": true,
+  "task": "pusht",
+  "variant": "baseline"
+}

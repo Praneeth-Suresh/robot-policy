@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/value"
+          },
+          "type": "array"
+        }
+      ]
+    }
+  },
+  "$id": "episode_step.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action_executed": {
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      },
+      "type": "object"
+    },
+    "action_proposed": {
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      },
+      "type": "object"
+    },
+    "info": {
+      "type": "object"
+    },
+    "obs": {
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      },
+      "type": "object"
+    },
+    "reward": {
+      "type": "number"
+    },
+    "step": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "t": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "step",
+    "t"
+  ],
+  "type": "object"
+}
