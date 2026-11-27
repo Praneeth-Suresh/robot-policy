@@ -176,13 +176,13 @@ def scaffold_pack(name: str, out: Path) -> Path:
 
 def _new(args: argparse.Namespace) -> int:
     try:
-        out = scaffold_pack(args.name, args.out)
+        scaffold_pack(args.name, args.out)
     except ScaffoldError as error:
         sys.stderr.write(f"Cannot write the task pack: {error}\n")
         return _EXIT_REFUSED
     sys.stdout.write(
-        f"task pack {args.name}: {out}\n"
-        f"next: cd {out} && pip install . && gsp lab tasks check {args.name}\n")
+        f"task pack {args.name}: {args.out}\n"
+        f"next: cd {args.out} && pip install . && gsp lab tasks check {args.name}\n")
     return _EXIT_OK
 
 

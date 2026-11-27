@@ -33,6 +33,7 @@ Every seed is listed explicitly in a comparison config. The seeds of the validat
 | `guided_streaming_policy/lab/tasks/pusht/fixtures/` | `.venv/bin/python -m tests.lab.fixture_builders <empty dir>`, then replace the committed tree | `tests/lab/test_fixtures.py` |
 | `tests/fixtures/lab/golden/*` | produced by the builders in the test that names the file; the test says how if the file is missing | the same tests |
 | `guided_streaming_policy/lab/tasks/pusht/pins.json` | the command above | `tests/lab/test_tasks.py` |
+| A scaffolded pack's `fixtures/` and `pins.json` | `python tools/build_fixtures.py` in the pack | `gsp lab tasks check <name>` (the ten `fixture:` checks and `policy_pins`) |
 | `guided_streaming_policy/lab/assets/*.svg` | copy the same-named file from `docs/brand/` | `tests/lab/test_report_tokens.py` |
 | `docs/brand/*.svg`, `social-preview.png` | designed by hand; `tokens.json` is the source of truth for colour, and a test checks the report CSS against it | `tests/lab/test_report_tokens.py` |
 | `docs/img/*.png` | see below | `tests/lab/test_docs.py` (size, alt text, caption) |

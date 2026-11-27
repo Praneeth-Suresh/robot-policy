@@ -108,7 +108,7 @@ class NewAndCheckTests(unittest.TestCase):
                 os.chdir(previous)
             self.assertEqual(code, 0, error)
             self.assertTrue((Path(temporary) / "relative-pack/rail/fixtures/cases.json").is_file())
-            self.assertIn(str(Path(temporary).resolve() / "relative-pack"), stdout)
+            self.assertIn("task pack rail: relative-pack\n", stdout)
 
     def test_usage_errors_exit_three(self) -> None:
         for arguments in (("tasks",), ("tasks", "new", "x"), ("tasks", "check"),
