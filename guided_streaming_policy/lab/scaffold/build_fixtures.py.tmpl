@@ -1,0 +1,251 @@
+"""Regenerate this pack's packaged fixtures and pin file.
+
+Run it from the pack root with `python tools/build_fixtures.py`. It replaces
+`$module/fixtures/` and `$module/pins.json`.
+
+The scenario runs are real simulator runs written by the lab's own exporter; a few are
+then edited into the ten cases the conformance kit checks (a dropped signal, changed
+reset fingerprints, missing episodes). Nothing here is a benchmark: every manifest is
+marked `synthetic`.
+"""
+
+from __future__ import annotations
+
+import shutil
+import sys
+import tempfile
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+PACK_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PACK_ROOT))
+
+from guided_streaming_policy.lab import exporter, schema  # noqa: E402
+from $module import simulator  # noqa: E402
+from $module.adapter import ${Class}Task  # noqa: E402
+
+PACKAGE = PACK_ROOT / "$module"
+FIXTURES = PACKAGE / "fixtures"
+TASK = ${Class}Task()
+SEEDS = (0, 1, 2, 3)
+STEADY, EAGER, SLOW = "$name/steady", "$name/eager", "$name/slow"
+PROVENANCE = {"tool_version": "fixture", "git_commit": "fixture",
+              "command": "tools/build_fixtures.py", "created_at": "2026-01-01T00:00:00Z"}
+SUCCESS_THRESHOLD = -0.1
+WALL_DISTANCE_THRESHOLD_M = 0.1
+MIN_COVERAGE = 0.95
+FIXTURE_MIN_COMPLETED_PAIRS = 2
+DEMO_EXIT = 1
+SLOWER_GAIN = 0.8
+GATE = {
+    "schema_version": schema.SCHEMA_VERSION, "name": "fixture_gate",
+    "min_completed_pairs": FIXTURE_MIN_COMPLETED_PAIRS,
+    "max_missing_pairs": 0, "max_incompatible_pairs": 0,
+    "rules": [
+        {"id": "success_not_worse", "metric": "native_success_rate",
+         "compare": "candidate_minus_baseline", "units": "fraction of completed pairs",
+         "threshold": SUCCESS_THRESHOLD, "required": True},
+        {"id": "separation_proxy", "metric": "obstacle_separation_min", "signal": "obs.x",
+         "units": "m", "threshold": WALL_DISTANCE_THRESHOLD_M, "tolerance": 0.0,
+         "min_coverage": MIN_COVERAGE, "required": True},
+    ],
+}
+
+
+def write_json(path: Path, document: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(schema.canonical_json(document), encoding="utf-8")
+
+
+def native_document(seeds: tuple[int, ...], splits: tuple[str | None, ...]) -> dict[str, Any]:
+    episodes = []
+    for seed, split in zip(seeds, splits, strict=True):
+        steps = simulator.simulate(1.0, seed).steps
+        episodes.append({"id": f"demo_{seed}", "split": split,
+                         "x": [step.position_m for step in steps],
+                         "u": [step.target_m for step in steps]})
+    return {"episodes": episodes}
+
+
+def read_native(document: dict[str, Any]) -> list[schema.Episode]:
+    with tempfile.TemporaryDirectory() as temporary:
+        path = Path(temporary) / "demos.json"
+        write_json(path, document)
+        episodes = list(TASK.read_demonstrations(path))
+    for episode in episodes:
+        episode.manifest["provenance"] = dict(PROVENANCE)
+        episode.manifest["dataset"]["checksum"] = "fixture"
+        episode.manifest["synthetic"] = True
+    return episodes
+
+
+def write_traces(directory: Path, episodes: list[schema.Episode]) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for episode in episodes:
+        schema.write_episode(episode, directory)
+
+
+def build_demos() -> None:
+    splits = ("train", "train", "val", "val")
+    write_json(FIXTURES / "native/demos.json", native_document(SEEDS, splits))
+    write_traces(FIXTURES / "demos/clean", read_native(native_document(SEEDS, splits)))
+    write_traces(FIXTURES / "demos/no_split",
+                 read_native(native_document(SEEDS[:3], (None, None, None))))
+    write_traces(FIXTURES / "demos/corrupt", corrupt_episodes())
+    write_traces(FIXTURES / "demos/leakage", leaked_episodes())
+
+
+def corrupt_episodes() -> list[schema.Episode]:
+    nan, shape, late = read_native(native_document(SEEDS[:3], ("train", "train", "val")))
+    for episode, name in ((nan, "nan"), (shape, "shape"), (late, "time")):
+        episode.manifest["episode_id"] = name
+    nan.steps[3]["obs"]["x"] = [float("nan")]
+    shape.steps[2]["action_executed"]["target"] = [0.1, 0.2]
+    late.steps[-1]["t"] = late.steps[-2]["t"] - 0.01
+    return [nan, shape, late]
+
+
+def leaked_episodes() -> list[schema.Episode]:
+    train, val = read_native(native_document((0, 0), ("train", "val")))
+    train.manifest["episode_id"], val.manifest["episode_id"] = "train", "val"
+    return [train, val]
+
+
+def rewrite_episode(
+    directory: Path, mutate: Callable[[schema.Episode], schema.Episode],
+) -> None:
+    episode = schema.read_episode(directory)
+    shutil.rmtree(directory)
+    schema.write_episode(mutate(episode), directory.parent)
+
+
+def mark_fixture(run: Path) -> None:
+    """Fix the provenance and flag every episode of a run as synthetic fixture data."""
+    def mutate(episode: schema.Episode) -> schema.Episode:
+        episode.manifest["provenance"] = dict(PROVENANCE)
+        episode.manifest["synthetic"] = True
+        return episode
+
+    for directory in schema.list_episode_dirs(run):
+        rewrite_episode(directory, mutate)
+    manifest = schema.read_run_manifest(run)
+    manifest["provenance"], manifest["synthetic"] = dict(PROVENANCE), True
+    schema.write_run_manifest(manifest, run)
+
+
+def drop_signal(run: Path) -> None:
+    def mutate(episode: schema.Episode) -> schema.Episode:
+        episode.manifest["fields_present"].remove("obs")
+        steps = tuple({key: value for key, value in step.items() if key != "obs"}
+                      for step in episode.steps)
+        return schema.Episode(episode.manifest, steps)
+
+    for directory in schema.list_episode_dirs(run):
+        rewrite_episode(directory, mutate)
+
+
+def change_fingerprints(run: Path, seeds: tuple[int, ...]) -> None:
+    def mutate(episode: schema.Episode) -> schema.Episode:
+        if episode.manifest["seed"] in seeds:
+            episode.manifest["reset_state_fingerprint"] = schema.sha256_json(
+                ["different", episode.manifest["seed"]])
+        return episode
+
+    for directory in schema.list_episode_dirs(run):
+        rewrite_episode(directory, mutate)
+
+
+def drop_episodes(run: Path, seeds: tuple[int, ...]) -> None:
+    manifest = schema.read_run_manifest(run)
+    for cell in [cell for cell in manifest["episodes"] if cell["seed"] in seeds]:
+        shutil.rmtree(run / cell["episode_id"])
+        manifest["episodes"].remove(cell)
+    schema.write_run_manifest(manifest, run)
+
+
+def comparison(
+    name: str, candidate: str, overrides: dict[str, Any] | None, intended: list[str],
+) -> dict[str, Any]:
+    variant: dict[str, Any] = {"policy": candidate}
+    if overrides:
+        variant["overrides"] = overrides
+    return {
+        "schema_version": schema.SCHEMA_VERSION, "name": name, "task": TASK.name,
+        "simulator_version": simulator.VERSION,
+        "matrix": {"conditions": ["nominal"], "seeds": list(SEEDS)},
+        "variants": {"baseline": {"policy": STEADY}, "candidate": variant},
+        "intended_differences": intended,
+    }
+
+
+def build_scenario(
+    name: str, candidate: str, overrides: dict[str, Any] | None, intended: list[str],
+    edit: Callable[[Path], None] | None = None,
+) -> None:
+    directory = FIXTURES / "scenarios" / name
+    config = directory / "comparison.json"
+    write_json(config, comparison(name, candidate, overrides, intended))
+    write_json(directory / "gate.json", GATE)
+    for variant in ("baseline", "candidate"):
+        exporter.export_variant(TASK, config, variant, directory / variant,
+                                command=PROVENANCE["command"], created_at=PROVENANCE["created_at"],
+                                log=lambda _message: None)
+        mark_fixture(directory / variant)
+    if edit is not None:
+        edit(directory / "candidate")
+
+
+def build_scenarios() -> None:
+    slower = {"gain": SLOWER_GAIN}
+    build_scenario("seeded_regression", EAGER, None, ["policy"])
+    build_scenario("two_valid_trajectories", STEADY, slower, ["overrides.gain"])
+    build_scenario("missing_signal", STEADY, slower, ["overrides.gain"], drop_signal)
+    build_scenario("mismatched_reset", STEADY, slower, ["overrides.gain"],
+                   lambda run: change_fingerprints(run, (1, 2)))
+    build_scenario("truncated", SLOW, None, ["policy"])
+    build_scenario("missing_pairs", STEADY, slower, ["overrides.gain"],
+                   lambda run: drop_episodes(run, (2, 3)))
+
+
+def scenario_case(
+    name: str, gate_exit: int, coverage: tuple[int, int, int], success: str, separation: str,
+) -> dict[str, Any]:
+    done, incompatible, missing = coverage
+    return {"path": f"scenarios/{name}", "compare_exit": 0, "gate_exit": gate_exit,
+            "coverage": {"completed": done, "incompatible": incompatible, "missing": missing},
+            "rules": {"success_not_worse": success, "separation_proxy": separation}}
+
+
+def cases_document() -> dict[str, Any]:
+    """The expected result of each case, declared here and checked by the conformance kit."""
+    cases: dict[str, Any] = {
+        "clean": {"path": "demos/clean", "doctor_exit": 0, "doctor_checks": []},
+        "no_split": {"path": "demos/no_split", "doctor_exit": 0,
+                     "doctor_checks": ["split.not_checked"]},
+        "corrupt": {"path": "demos/corrupt", "doctor_exit": 1, "doctor_checks": [
+            "shape.mismatch", "time.non_monotonic", "value.non_finite"]},
+        "leakage": {"path": "demos/leakage", "doctor_exit": 1, "doctor_checks": ["split.leakage"]},
+        "seeded_regression": scenario_case("seeded_regression", 1, (4, 0, 0), "pass", "fail"),
+        "two_valid_trajectories": scenario_case("two_valid_trajectories", 0, (4, 0, 0),
+                                                "pass", "pass"),
+        "missing_signal": scenario_case("missing_signal", 2, (4, 0, 0), "pass", "unknown"),
+        "mismatched_reset": scenario_case("mismatched_reset", 2, (2, 2, 0), "pass", "pass"),
+        "truncated": scenario_case("truncated", 1, (4, 0, 0), "fail", "pass"),
+        "missing_pairs": scenario_case("missing_pairs", 2, (2, 0, 2), "pass", "pass"),
+    }
+    return {"schema_version": schema.SCHEMA_VERSION, "demo_exit": DEMO_EXIT, "cases": cases}
+
+
+def main() -> int:
+    shutil.rmtree(FIXTURES, ignore_errors=True)
+    write_json(PACKAGE / "pins.json",
+               {"schema_version": schema.SCHEMA_VERSION, "tasks": {TASK.name: TASK.current_pins()}})
+    build_demos()
+    build_scenarios()
+    write_json(FIXTURES / "cases.json", cases_document())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

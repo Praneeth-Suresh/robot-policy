@@ -11,6 +11,7 @@ from typing import Any, NoReturn
 
 from guided_streaming_policy.lab import adapters, doctor, exporter, gate, pairing, report, schema
 from guided_streaming_policy.lab.adapters import format_policy_rows, load_pins
+from guided_streaming_policy.lab.cli_tasks import add_tasks_parser, run_tasks
 from guided_streaming_policy.lab.tasks import registry
 from guided_streaming_policy.lab.tasks.base import FixtureSet, TaskAdapter
 from guided_streaming_policy.lab.tasks.registry import get_task
@@ -75,6 +76,7 @@ def add_lab_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
     _add_gate_parser(commands)
     _add_report_parser(commands)
     _add_demo_parser(commands)
+    add_tasks_parser(commands)
 
 
 def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -333,6 +335,8 @@ def _run_demo(args: argparse.Namespace, adapter: TaskAdapter) -> int:
 
 def run_lab(args: argparse.Namespace) -> int:
     """Dispatch a lab command and translate input/usage/internal failures to exit codes."""
+    if args.lab_command == "tasks":
+        return run_tasks(args)
     if args.lab_command not in ("policies", "doctor", "run", "compare", "gate", "report", "demo"):
         sys.stderr.write(f"Unknown Policy Trace Lab command: {args.lab_command}\n")
         return _EXIT_USAGE_OR_INTERNAL

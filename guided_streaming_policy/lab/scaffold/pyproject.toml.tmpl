@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gsp-lab-$dist"
+version = "0.1.0"
+description = "Policy Trace Lab task pack: $name, a cart on a one-dimensional rail."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["guided-streaming-policy>=0.1"]
+
+[project.entry-points."gsp_lab.tasks"]
+$name = "$module.adapter:${Class}Task"
+
+[tool.setuptools.packages.find]
+include = ["$module*"]
+
+[tool.setuptools.package-data]
+$module = ["pins.json", "fixtures/**/*.json", "fixtures/**/*.jsonl"]

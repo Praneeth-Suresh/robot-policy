@@ -1,4 +1,4 @@
-"""Install throwaway task packs by writing package metadata and modules to a temp directory."""
+"""Throwaway task packs: fake distributions on sys.path and a scaffolded one-dimensional pack."""
 
 import importlib
 import sys
@@ -6,8 +6,13 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from types import ModuleType
 
-__all__ = ["PackSpec", "installed_packs"]
+from guided_streaming_policy.lab import cli_tasks
+
+__all__ = ["PACK", "PackSpec", "ScaffoldedPack", "installed_packs"]
+
+PACK = "rail"
 
 
 class PackSpec:
@@ -54,3 +59,21 @@ def installed_packs(*specs: PackSpec) -> Iterator[Path]:
             for spec in specs:
                 sys.modules.pop(spec.module, None)
             importlib.invalidate_caches()
+
+
+class ScaffoldedPack:
+    """Generate the rail pack into a temporary directory and make it importable."""
+
+    def __init__(self) -> None:
+        self._directory = tempfile.TemporaryDirectory()
+        self.root = Path(self._directory.name) / "pack"
+        cli_tasks.scaffold_pack(PACK, self.root)
+        sys.path.insert(0, str(self.root))
+        importlib.invalidate_caches()
+        self.adapter_module: ModuleType = importlib.import_module(f"{PACK}.adapter")
+
+    def close(self) -> None:
+        sys.path.remove(str(self.root))
+        for name in [name for name in sys.modules if name == PACK or name.startswith(PACK + ".")]:
+            del sys.modules[name]
+        self._directory.cleanup()

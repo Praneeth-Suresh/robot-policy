@@ -1,12 +1,12 @@
 """Offline report evidence, escaping, replay data, and deterministic output."""
 
 import json
+import math
 import re
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from guided_streaming_policy.lab import schema
 from tests.lab.helpers import report_pipeline
@@ -14,6 +14,7 @@ from tests.lab.helpers import report_pipeline
 __all__: list[str] = []
 
 _GOLDEN = Path(__file__).parents[1] / "fixtures/lab/golden/report_regression.html"
+_DEEP_LINK_STEP = 3
 _CHROME = Path("/usr/bin/google-chrome")
 
 
@@ -217,13 +218,12 @@ class ReportTests(unittest.TestCase):
         self.assertIn("step 3</a>", page)
         self.assertNotIn("step 3.00", page)
 
-    def render_toy(self) -> str:
-        from guided_streaming_policy.lab import gate, pairing, report
-        from tests.lab.test_toy_task_contract import ToyTask, populate
+    def render_toy(self) -> tuple[str, dict[str, float]]:
+        """Render the scaffolded one-dimensional rail pack's seeded regression."""
+        from guided_streaming_policy.lab import cli_tasks, gate, pairing, report
 
-        with patch.object(ToyTask, "root", self.root):
-            populate(ToyTask())
-        scenario = self.root / "scenario"
+        pack = cli_tasks.scaffold_pack("rail", self.root / "pack")
+        scenario = pack / "rail/fixtures/scenarios/seeded_regression"
         comparison = pairing.build_comparison(
             scenario / "baseline",
             scenario / "candidate",
@@ -233,17 +233,20 @@ class ReportTests(unittest.TestCase):
         result = gate.evaluate_gate(
             comparison, schema.load_gate_config(scenario / "gate.json"), base_dir=self.root
         )
-        return report.render_report(comparison, result, base_dir=self.root)
+        # browser_dom opens "#pair=static:1&step=3"; an unknown pair selects the first one.
+        step, seed = _DEEP_LINK_STEP, comparison["pairs"][0]["key"]["seed"]
+        wall = 0.55
+        distances = {}
+        for side in ("baseline", "candidate"):
+            episode = schema.read_episode(scenario / side / f"nominal__seed{seed}")
+            distances[side] = abs(episode.steps[step]["obs"]["x"][0] - wall)
+        return report.render_report(comparison, result, base_dir=self.root), distances
 
     @unittest.skipUnless(_CHROME.is_file(), "google-chrome is not installed")
     def test_browser_toy_separation_vectors_and_scalars(self) -> None:
-        page = self.render_toy()
+        page, distances = self.render_toy()
         payload = re.search(r'id="trace-data">(.*?)</script>', page, re.S)[1]
-        for scalar, extra, baseline, candidate in (
-            (False, [], "0.63", "0.05"),
-            (True, [], "0.63", "0.05"),
-            (False, [0.3, 0.4], "0.80", "0.50"),
-        ):
+        for scalar, extra in ((False, []), (True, []), (False, [0.3, 0.4])):
             with self.subTest(scalar=scalar, extra=extra):
                 data = json.loads(payload)
                 for pair in data["pairs"]:
@@ -261,10 +264,13 @@ class ReportTests(unittest.TestCase):
                 dom = self.browser_dom(page.replace(payload, json.dumps(data)))
                 text = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", "", dom, flags=re.S)
                 text = re.sub(r"<[^>]+>", "", text)
+                offset = math.hypot(*extra) if extra else 0.0
+                baseline = f"{math.hypot(distances['baseline'], offset):.2f}"
+                candidate = f"{math.hypot(distances['candidate'], offset):.2f}"
                 self.assertNotIn("not collected", text)
                 self.assertIn(
                     f"baseline (solid): {baseline} · candidate (dashed): {candidate}"
-                    " · threshold 0.15",
+                    " · threshold 0.10",
                     text,
                 )
 

@@ -82,7 +82,7 @@ def entries() -> tuple[TaskEntry, ...]:
         by_name.setdefault(name, []).append(TaskEntry(name, _IN_PROCESS, _IN_PROCESS, "-"))
     result = []
     for name in sorted(by_name):
-        claims = by_name[name]
+        claims = sorted(by_name[name], key=lambda c: (c.distribution.lower(), c.version))
         if len(claims) == 1:
             result.append(claims[0])
             continue

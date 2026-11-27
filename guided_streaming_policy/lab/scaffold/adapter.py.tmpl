@@ -1,0 +1,177 @@
+"""The `$name` task adapter: policies, schemas, run hook and fixtures for the rail simulator.
+
+Importing this module imports no simulator package, torch or numpy, so the lab can
+list and probe the pack cheaply.
+"""
+
+from __future__ import annotations
+
+import importlib.resources
+import json
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+from guided_streaming_policy.lab import adapters, schema
+from guided_streaming_policy.lab.tasks.base import (
+    CONTRACT_VERSION,
+    ConditionSpec,
+    FixtureSet,
+    PolicySpec,
+    PolicyStatus,
+    ProbeResult,
+    TrialRecord,
+    TrialRequest,
+    TunableSpec,
+)
+
+from $module import simulator
+
+__all__ = ["${Class}Task"]
+
+_PACKAGE = "$module"
+_FRAME = "rail"
+_TASK_NAME = "$name"
+_PAPER = "No paper: a proportional rail controller written for this pack."
+_FIELDS_PRESENT = ("obs", "action_executed", "reward", "reset_state_fingerprint", "geometry")
+_DEMO_COMMAND = "gsp lab doctor <native demonstrations>"
+
+
+def _policy(name: str, summary: str, gain: float) -> PolicySpec:
+    tunable = TunableSpec("gain", gain, "Fraction of the remaining distance to the goal commanded.")
+    return PolicySpec(f"{_TASK_NAME}/{name}", summary, _PAPER,
+                      f"{_PACKAGE}.simulator:simulate", (), (tunable,))
+
+
+POLICIES = (
+    _policy("steady", "Commands the goal directly; stops at the goal.", 1.0),
+    _policy("eager", "Commands far beyond the goal; overshoots toward the wall.", 10.0),
+    _policy("slow", "Commands a tiny step; never reaches the goal in time.", 0.05),
+)
+
+
+def _vector(units: str) -> dict[str, Any]:
+    return {"shape": [1], "dtype": "float64", "units": units, "frame": _FRAME}
+
+
+def _geometry(wall_m: float) -> dict[str, Any]:
+    return {
+        "obstacles": [{"id": "wall", "kind": "virtual_point", "position": [wall_m],
+                       "radius": simulator.WALL_RADIUS_M, "units": "m", "frame": _FRAME,
+                       "source": "simulator.CONDITION_WALLS_M; never part of the dynamics"}],
+        "goal": {"position": [simulator.GOAL_M], "units": "m", "frame": _FRAME},
+    }
+
+
+class ${Class}Task:
+    """A cart on a rail with a virtual wall; runs anywhere, with no assets."""
+
+    name = _TASK_NAME
+    contract_version = CONTRACT_VERSION
+
+    def fixtures(self) -> FixtureSet:
+        """Return the fixture set packaged with this pack."""
+        root = Path(str(importlib.resources.files(_PACKAGE) / "fixtures"))
+        return FixtureSet(root / "demos/clean", root / "demos/corrupt",
+                          root / "scenarios/seeded_regression", root)
+
+    def conditions(self) -> tuple[ConditionSpec, ...]:
+        """Return the two wall placements."""
+        return (
+            ConditionSpec("nominal", "The wall stands 0.55 m along the rail."),
+            ConditionSpec("close_wall", "The wall stands 0.48 m along the rail."),
+        )
+
+    def run_trial(self, request: TrialRequest) -> TrialRecord:
+        """Simulate one trial and record every step."""
+        wall = simulator.CONDITION_WALLS_M[request.condition]
+        rollout = simulator.simulate(float(request.settings["gain"]), request.seed)
+        steps = tuple({
+            "step": index, "t": round(index * simulator.DT_SECONDS, 6),
+            "obs": {"x": [step.position_m], "v": [step.speed_mps]},
+            "action_executed": {"target": [step.target_m]}, "reward": step.reward,
+        } for index, step in enumerate(rollout.steps))
+        closest = min(abs(step.position_m - wall) for step in rollout.steps)
+        reached = rollout.reached_goal
+        return TrialRecord(
+            steps=steps,
+            reset_state_fingerprint=schema.sha256_json([rollout.start_m, 0.0]),
+            native_success=reached, terminated=reached, truncated=not reached,
+            reason="goal_reached" if reached else "max_steps",
+            native={"closest_wall_distance_m": round(closest, 6)},
+            geometry=_geometry(wall), fields_present=_FIELDS_PRESENT,
+        )
+
+    def policies(self) -> tuple[PolicySpec, ...]:
+        """Return the three reference policies."""
+        return POLICIES
+
+    def policy_statuses(self) -> tuple[PolicyStatus, ...]:
+        """Every policy is runnable: the simulator is part of this package."""
+        return tuple(PolicyStatus(spec, "runnable", None) for spec in POLICIES)
+
+    def probe(self) -> ProbeResult:
+        """Report the simulator version; there are no assets or dependencies."""
+        return ProbeResult("rail", simulator.VERSION, {}, {})
+
+    def observation_schema(self) -> dict[str, Any]:
+        """Return the cart position and speed fields."""
+        return {"fields": {"x": _vector("m"), "v": _vector("m/s")}}
+
+    def action_schema(self) -> dict[str, Any]:
+        """Return the absolute target position the spring-damper tracks."""
+        return {"convention": "absolute", "fields": {"target": _vector("m")}}
+
+    def timebase(self) -> dict[str, Any]:
+        """Return the fixed control period."""
+        return {"unit": "s", "mode": "fixed_dt", "dt": simulator.DT_SECONDS}
+
+    def read_demonstrations(self, path: Path) -> Iterator[schema.Episode]:
+        """Read `{"episodes": [{"id", "split", "x", "u"}]}` into demonstration traces."""
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+            episodes = list(document["episodes"])
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise schema.TraceReadError(f"Cannot read demonstrations {path}: {error}") from error
+        checksum = schema.sha256_file(path)
+        provenance = schema.make_provenance(_DEMO_COMMAND)
+        for item in episodes:
+            yield self._demonstration(item, checksum, provenance)
+
+    def _demonstration(
+        self, item: dict[str, Any], checksum: str, provenance: dict[str, str],
+    ) -> schema.Episode:
+        split = item.get("split")
+        manifest = {
+            "schema_version": schema.SCHEMA_VERSION, "kind": schema.KIND_DEMONSTRATION,
+            "episode_id": item["id"], "source_episode_id": item["id"], "task": self.name,
+            "dataset": {"name": "rail-demonstrations", "revision": "unversioned",
+                        "checksum": checksum},
+            "split": split, "split_source": "native file" if split else "none",
+            "timebase": self.timebase(), "observation_schema": self.observation_schema(),
+            "action_schema": self.action_schema(), "fields_present": ["obs", "action_executed"],
+            "provenance": provenance,
+        }
+        steps = tuple({
+            "step": index, "t": round(index * simulator.DT_SECONDS, 6),
+            "obs": {"x": [position], "v": [0.0]}, "action_executed": {"target": [target]},
+        } for index, (position, target) in enumerate(zip(item["x"], item["u"], strict=True)))
+        return schema.Episode(manifest, steps)
+
+    def pins_path(self) -> Path:
+        """Return the pin document packaged with this pack."""
+        return Path(str(importlib.resources.files(_PACKAGE) / "pins.json"))
+
+    def current_pins(self) -> dict[str, Any]:
+        """Recompute the pins: no checkpoints, one resolved-config hash per policy."""
+        return {
+            "simulator": {"name": "rail", "version": simulator.VERSION},
+            "policies": {
+                spec.name: {
+                    "checkpoints": {},
+                    "config_sha256": adapters.config_sha256(
+                        adapters.resolve_policy_config(spec, {})),
+                }
+                for spec in POLICIES
+            },
+        }

@@ -23,6 +23,7 @@ EDGES = {
     "report": {"schema"},
     "tasks.base": {"schema"},
     "tasks.registry": {"tasks.base"},
+    "cli_tasks": {"testing", "tasks.registry", "tasks.base"},
     "testing": {"schema", "adapters", "exporter", "doctor", "pairing", "checks", "gate", "report",
                 "tasks.base", "tasks.registry"},
     "__init__": set(),
