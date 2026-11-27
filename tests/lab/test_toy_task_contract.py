@@ -248,10 +248,13 @@ class ToyTaskContractTests(unittest.TestCase):
             patch.object(ToyTask, "root", Path(temporary)),
         ):
             # This is the sole registration/wiring change required by a new task.
-            with patch.dict(registry.TASKS, {"toy": __name__ + ":ToyTask"}):
+            registry.register("toy", ToyTask)
+            try:
                 adapter: TaskAdapter = ToyTask()
                 populate(ToyTask())
                 self.exercise_pipeline(Path(temporary), adapter)
+            finally:
+                registry.unregister("toy")
 
     def exercise_pipeline(self, root: Path, adapter: TaskAdapter) -> None:
         policies = self.invoke(0, "policies", "--task", "toy")

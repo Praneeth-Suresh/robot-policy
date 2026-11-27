@@ -92,7 +92,10 @@ def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) 
 
 
 def _add_run_parser(commands: argparse._SubParsersAction[LabArgumentParser], task: str) -> None:
-    assets = ", ".join(sorted(registry.get_task(task).probe().assets))
+    try:
+        assets = ", ".join(sorted(registry.get_task(task).probe().assets))
+    except (KeyError, registry.TaskLoadError):
+        assets = "(task not loadable)"
     parser = commands.add_parser(
         "run", help="Run the simulator and record Policy Trace Lab episodes.",
         description="Policy Trace Lab runs the simulator for the comparison's explicit "
@@ -229,7 +232,7 @@ def _run_export(args: argparse.Namespace) -> int:
     config = exporter.load_comparison(args.comparison)
     try:
         adapter = get_task(config.task)
-    except KeyError as error:
+    except (KeyError, registry.TaskLoadError) as error:
         raise exporter.SetupError(str(error)) from error
     out = args.out if args.out is not None else exporter.default_out_dir(
         args.comparison, args.variant)
@@ -342,6 +345,9 @@ def run_lab(args: argparse.Namespace) -> int:
         except KeyError as error:
             sys.stderr.write(f"{error}\n")
             return _EXIT_USAGE_OR_INTERNAL
+        except registry.TaskLoadError as error:
+            sys.stderr.write(f"Cannot load task {args.task!r}: {error}\n")
+            return _EXIT_INVALID_INPUT
         if args.lab_command == "demo":
             return _run_demo(args, adapter)
         if args.lab_command == "doctor":

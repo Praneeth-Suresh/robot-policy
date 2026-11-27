@@ -76,6 +76,9 @@ dev = [
 [project.scripts]
 gsp = "guided_streaming_policy.cli:main"
 
+[project.entry-points."gsp_lab.tasks"]
+pusht = "guided_streaming_policy.lab.tasks.pusht.adapter:PushTTask"
+
 [tool.setuptools.packages.find]
 include = ["guided_streaming_policy*"]
 
