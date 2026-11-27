@@ -623,6 +623,8 @@ This project builds on the Push-T benchmark and the Diffusion Policy codebase (C
 
 The lab sits on top of the research code in this repository: diffusion, flow-matching and streaming stochastic-interpolant policies with guidance methods (STEG, CCG, CAR) for Push-T, and low-dimensional Robomimic scripts for Can, Square and Lift. These commands remain available and unchanged. The component evidence below is not a benchmark and not a claim of improved robot performance.
 
+**Two meanings of "task".** `gsp list-tasks` and `gsp run <script>` drive the legacy research scripts and have nothing to do with the lab. A lab task is a simulator task pack, selected with `--task` on `gsp lab` commands and listed by `gsp lab tasks list`.
+
 ### Try the research CLI without downloads
 
 ```bash offline exit=0

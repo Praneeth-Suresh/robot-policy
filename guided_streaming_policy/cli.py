@@ -18,16 +18,16 @@ def build_parser() -> argparse.ArgumentParser:
     add_lab_parser(subparsers)
 
     subparsers.add_parser("check-env", help="Report workspace and dependency status.")
-    subparsers.add_parser("list-tasks", help="List available Push-T and Robomimic tasks.")
+    subparsers.add_parser("list-tasks", help="List the legacy research scripts (Push-T and Robomimic).")
 
-    run_parser = subparsers.add_parser("run", help="Run a Push-T or Robomimic task.")
-    run_parser.add_argument("task", choices=_all_task_names(), help="Task name returned by `gsp list-tasks`.")
+    run_parser = subparsers.add_parser("run", help="Run a legacy research script (Push-T or Robomimic).")
+    run_parser.add_argument("task", choices=_all_task_names(), help="Script name returned by `gsp list-tasks`.")
     run_parser.add_argument(
         "--task",
         dest="robomimic_task",
         choices=robomimic_legacy.TASK_CHOICES,
         default=robomimic_legacy.DEFAULT_TASK,
-        help="robomimic task variant (can/square/lift); only used by mimic-* tasks.",
+        help="Robomimic variant (can/square/lift); only used by mimic-* scripts.",
     )
     run_parser.add_argument(
         "--dry-run",
