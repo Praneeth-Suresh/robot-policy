@@ -63,6 +63,10 @@ More rules, each with a test:
 
 These amend the build prompt's table in two places: every core module may import `tasks.base` (the contract), and `exporter` and tasks may import `adapters`. The reasons are in [decisions](decisions.md).
 
+## Quality gates and their scope
+
+`ruff`, `mypy` (strict) and `vulture` run on `guided_streaming_policy/lab` and `tests/lab` only. They are strict there and CI fails on any finding. Research code (`guided_streaming_policy/core`, `Push-T/`, `Robomimic/`, the legacy CLI modules) and the legacy tests in `tests/` are checked only by `python -m compileall` and their own unit tests. Running `ruff` on the whole repository reports roughly 2,250 findings, nearly all in that legacy code; they are not part of this change and are not gated. A new lab module, or code moved into the lab, falls under the strict gates the moment it lands in those two directories.
+
 ## How a run is recorded
 
 The Push-T runners are monolithic functions that run three episodes per call using a module-global `env`. The exporter swaps that global for a recording proxy, calls the unchanged runner, and keeps the third episode (the guided one). With the exporter off, the default Push-T run path is not touched. See [baseline](baseline.md) for the details and the source references.
