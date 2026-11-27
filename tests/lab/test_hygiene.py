@@ -334,6 +334,15 @@ class HygieneTests(unittest.TestCase):
             "separation_proxy",
             "out/demo/report/report.html",
             "Synthetic fixture data. Not a benchmark.",
+            "plugin-smoke:",
+            '"$RUNNER_TEMP/plugin-venv/bin/python" -m pip install .',
+            "gsp lab tasks new rail --out rail-pack",
+            "pip install ./rail-pack",
+            "gsp lab tasks check rail",
+            "gsp lab demo --task rail --out out/rail-demo",
+            "gsp lab tasks list | grep",
+            "broken: ImportError",
+            "git status --porcelain -- guided_streaming_policy/lab",
         )
         for command in commands:
             with self.subTest(command=command):
