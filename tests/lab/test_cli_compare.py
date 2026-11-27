@@ -16,6 +16,7 @@ from tests.lab.helpers import (
     gate_config,
     gate_document,
     geometry_rollout,
+    register_fake_task,
     rollout_run,
 )
 
@@ -24,6 +25,7 @@ __all__: list[str] = []
 
 class CompareCLITests(unittest.TestCase):
     def setUp(self) -> None:
+        register_fake_task(self)
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)

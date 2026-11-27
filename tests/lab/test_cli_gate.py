@@ -11,13 +11,14 @@ from unittest.mock import patch
 
 from guided_streaming_policy.cli import main
 from guided_streaming_policy.lab import schema
-from tests.lab.helpers import gate_comparison, gate_config, gate_episodes
+from tests.lab.helpers import gate_comparison, gate_config, gate_episodes, register_fake_task
 
 __all__: list[str] = []
 
 
 class GateCLITests(unittest.TestCase):
     def setUp(self) -> None:
+        register_fake_task(self)
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)

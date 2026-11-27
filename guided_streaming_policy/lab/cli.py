@@ -184,9 +184,24 @@ def _report_file(compare_path: Path, gate_path: Path | None, out: Path | None) -
     return output
 
 
+def _require_known_conditions(task: str, conditions: Iterable[str]) -> None:
+    """Refuse conditions the task pack does not declare, listing the supported names."""
+    try:
+        adapters.validate_conditions(get_task(task), tuple(conditions))
+    except (KeyError, registry.TaskLoadError, ValueError) as error:
+        raise schema.ConfigError(str(error)) from error
+
+
 def _gate_document(compare_path: Path, gate_path: Path, out: Path | None) -> dict[str, Any]:
     config = schema.load_gate_config(gate_path)
     comparison = pairing.load_comparison_result(compare_path)
+    try:
+        task = comparison["comparison"]["task"]
+        conditions = sorted({pair["key"]["condition"] for pair in comparison["pairs"]})
+    except (KeyError, TypeError):
+        pass  # a malformed document is reported by the gate itself
+    else:
+        _require_known_conditions(task, conditions)
     document = gate.evaluate_gate(comparison, config, base_dir=compare_path.parent)
     directory = out if out is not None else Path("out/gate") / config.name
     adapters.write_report_file(directory / "gate.json", schema.canonical_json(document))
@@ -197,6 +212,7 @@ def _compare_document(
     baseline: Path, candidate: Path, config_path: Path, out: Path | None,
 ) -> tuple[dict[str, Any], Path]:
     config = schema.load_comparison_config(config_path)
+    _require_known_conditions(config.task, config.conditions)
     directory = out if out is not None else Path("out/compare") / config.name
     document = pairing.build_comparison(baseline, candidate, config, out_dir=directory)
     output = directory / "compare.json"

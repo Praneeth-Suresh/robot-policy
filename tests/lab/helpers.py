@@ -1,10 +1,13 @@
 """Deterministic synthetic trace builders shared by lab tests."""
 
+import tempfile
+import unittest
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
 from guided_streaming_policy.lab import adapters, schema
+from guided_streaming_policy.lab.tasks import registry
 from guided_streaming_policy.lab.tasks.base import (
     CONTRACT_VERSION,
     ConditionSpec,
@@ -18,9 +21,9 @@ from guided_streaming_policy.lab.tasks.base import (
     TunableSpec,
 )
 
-__all__ = ["demo_episode", "rollout_episode", "write_traces", "FakeTask", "comparison_document",
-           "comparison_config", "geometry_rollout", "rollout_run", "gate_document", "gate_config",
-           "gate_comparison", "gate_episodes", "report_pipeline"]
+__all__ = ["register_fake_task", "demo_episode", "rollout_episode", "write_traces", "FakeTask",
+           "comparison_document", "comparison_config", "geometry_rollout", "rollout_run",
+           "gate_document", "gate_config", "gate_comparison", "gate_episodes", "report_pipeline"]
 
 _DT_SECONDS = 0.1
 _TIME_DECIMALS = 6
@@ -170,6 +173,14 @@ class FakeTask:
         if request.seed in self.crash_seeds:
             raise TrialCrashed("fixture crash", record)
         return record
+
+
+def register_fake_task(test: unittest.TestCase) -> None:
+    """Register the toy fixture task so comparison and gate commands can resolve it."""
+    directory = tempfile.TemporaryDirectory()
+    test.addCleanup(directory.cleanup)
+    registry.register("toy", lambda: FakeTask(Path(directory.name)))
+    test.addCleanup(registry.unregister, "toy")
 
 
 def comparison_document(seeds: tuple[int, ...] = (0, 1)) -> dict[str, Any]:
