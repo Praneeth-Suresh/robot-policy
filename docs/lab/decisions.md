@@ -54,7 +54,7 @@ Design skill: `frontend-design` from <https://github.com/anthropics/skills> (Apa
 
 ## Removal manifest
 
-Every pre-existing file in the starting commit `6a0b8ad` has one action. Nothing has been deleted: rows marked **proposed** wait for the maintainer's approval (`AGENTS.md` requires an itemised list before any root documentation is deleted or consolidated). If you approve none of them, the tree stays valid.
+Every pre-existing file in the starting commit `6a0b8ad` has one action. The removals proposed in the first release were approved by the maintainer in the v3 follow-up prompt (2026-11-27), which serves as the itemised approval that `AGENTS.md` asks for. They were carried out on the branch `feature/lab-simulator-plugins`, in the commit with the subject `chore: remove approved files and scratch page`.
 
 ### Moved, rewritten or changed
 
@@ -66,14 +66,15 @@ Every pre-existing file in the starting commit `6a0b8ad` has one action. Nothing
 | `uv.lock` | changed | Resolves the new `dev` extra; no existing package version changed. |
 | `.gitignore` | changed | Adds `out/` (lab outputs). |
 | `.beryl/agent/architecture.md`, `ubiquitous-language.md`, `testing-policy.md` | changed | Durable decisions, terms and the new lint, type and dead-code commands, as `AGENTS.md` requires. |
-| `.beryl/agent/project-brief.md` | changed (only if `curriculum.md` is removed) | Drops the `curriculum.md` mention in the documentation row. |
+| `.beryl/agent/project-brief.md` | changed | Drops the `curriculum.md` mention in the documentation row. |
 
-### Removed (proposed)
+### Removed (approved by the maintainer)
 
 | Path | Action | Reason | What is lost | Where it lives |
 | --- | --- | --- | --- | --- |
 | `curriculum.md` | remove | A personal study plan. No code, test, command or lab document uses it, so it does not contribute to the lab. | The reading list and build tasks for learning the methods. | Git history (`6a0b8ad`). The paper references the lab needs are in the README and the policy registry. |
 | `Robomimic/si_can_results/streaming_si_ode.gif`, `Robomimic/si_can_results/streaming_si_sde.gif` | remove | Generated result files committed by mistake; the repository's own rule is that result directories are gitignored (`.gitignore` ignores `Robomimic/si_*_results/`). Nothing references them. | Two sample GIFs. | Git history. |
+| `p.html` | remove | A brand-preview page committed by mistake in `0094789`. It was in no manifest and nothing references it. | A scratch page. | Git history. |
 
 ### Kept, with the reason
 
