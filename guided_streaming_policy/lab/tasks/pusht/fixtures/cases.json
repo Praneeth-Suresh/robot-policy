@@ -1,0 +1,118 @@
+{
+  "cases": {
+    "clean": {
+      "doctor_checks": [],
+      "doctor_exit": 0,
+      "path": "demos/clean"
+    },
+    "corrupt": {
+      "doctor_checks": [
+        "shape.mismatch",
+        "time.non_monotonic",
+        "value.non_finite"
+      ],
+      "doctor_exit": 1,
+      "path": "demos/corrupt"
+    },
+    "leakage": {
+      "doctor_checks": [
+        "split.leakage"
+      ],
+      "doctor_exit": 1,
+      "path": "demos/leakage"
+    },
+    "mismatched_reset": {
+      "compare_exit": 0,
+      "coverage": {
+        "completed": 2,
+        "incompatible": 2,
+        "missing": 0
+      },
+      "gate_exit": 2,
+      "path": "scenarios/mismatched_reset",
+      "rules": {
+        "separation_proxy": "pass",
+        "success_not_worse": "pass"
+      }
+    },
+    "missing_pairs": {
+      "compare_exit": 0,
+      "coverage": {
+        "completed": 2,
+        "incompatible": 0,
+        "missing": 2
+      },
+      "gate_exit": 2,
+      "path": "scenarios/missing_pairs",
+      "rules": {
+        "separation_proxy": "pass",
+        "success_not_worse": "pass"
+      }
+    },
+    "missing_signal": {
+      "compare_exit": 0,
+      "coverage": {
+        "completed": 4,
+        "incompatible": 0,
+        "missing": 0
+      },
+      "gate_exit": 2,
+      "path": "scenarios/missing_signal",
+      "rules": {
+        "separation_proxy": "unknown",
+        "success_not_worse": "pass"
+      }
+    },
+    "no_split": {
+      "doctor_checks": [
+        "split.not_checked"
+      ],
+      "doctor_exit": 0,
+      "path": "demos/no_split"
+    },
+    "seeded_regression": {
+      "compare_exit": 0,
+      "coverage": {
+        "completed": 4,
+        "incompatible": 0,
+        "missing": 0
+      },
+      "gate_exit": 1,
+      "path": "scenarios/seeded_regression",
+      "rules": {
+        "separation_proxy": "fail",
+        "success_not_worse": "pass"
+      }
+    },
+    "truncated": {
+      "compare_exit": 0,
+      "coverage": {
+        "completed": 4,
+        "incompatible": 0,
+        "missing": 0
+      },
+      "gate_exit": 1,
+      "path": "scenarios/truncated",
+      "rules": {
+        "separation_proxy": "pass",
+        "success_not_worse": "fail"
+      }
+    },
+    "two_valid_trajectories": {
+      "compare_exit": 0,
+      "coverage": {
+        "completed": 4,
+        "incompatible": 0,
+        "missing": 0
+      },
+      "gate_exit": 0,
+      "path": "scenarios/two_valid_trajectories",
+      "rules": {
+        "separation_proxy": "pass",
+        "success_not_worse": "pass"
+      }
+    }
+  },
+  "demo_exit": 1,
+  "schema_version": "0.1"
+}

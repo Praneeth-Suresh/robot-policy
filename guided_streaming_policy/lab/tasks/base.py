@@ -73,12 +73,15 @@ class ProbeResult:
 class FixtureSet:
     """Synthetic inputs for the offline demo and CI.
 
-    scenario holds baseline/, candidate/, comparison.json and gate.json.
+    scenario holds baseline/, candidate/, comparison.json and gate.json. root holds
+    cases.json, which declares the expected result of each of the ten fixture cases
+    (see guided_streaming_policy.lab.testing).
     """
 
     demo_clean: Path
     demo_corrupt: Path
     scenario: Path
+    root: Path
 
 
 class TaskAdapter(Protocol):

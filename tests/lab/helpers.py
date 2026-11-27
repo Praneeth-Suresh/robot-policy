@@ -111,7 +111,7 @@ class FakeTask:
     def fixtures(self) -> FixtureSet:
         """Expose temporary locations for protocol completeness; no demo inputs exist."""
         root = self._pins.parent
-        return FixtureSet(root / "clean", root / "corrupt", root / "scenario")
+        return FixtureSet(root / "clean", root / "corrupt", root / "scenario", root)
 
     def policies(self) -> tuple[PolicySpec, ...]:
         """Return two policies with the same scalar tunable."""

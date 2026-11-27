@@ -74,7 +74,7 @@ class PushTTask:
         """Locate the synthetic fixtures packaged with this task."""
         root = Path(str(importlib.resources.files(_PACKAGE) / "fixtures"))
         return FixtureSet(root / "demos/clean", root / "demos/corrupt",
-                          root / "scenarios/seeded_regression")
+                          root / "scenarios/seeded_regression", root)
 
     def conditions(self) -> tuple[ConditionSpec, ...]:
         """Return the static condition and the declared, not yet runnable dynamic one."""

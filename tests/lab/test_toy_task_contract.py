@@ -100,7 +100,8 @@ class ToyTask:
         }
 
     def fixtures(self) -> FixtureSet:
-        return FixtureSet(self.root / "clean", self.root / "corrupt", self.root / "scenario")
+        root = self.root
+        return FixtureSet(root / "clean", root / "corrupt", root / "scenario", root)
 
     def run_trial(self, request: TrialRequest) -> TrialRecord:
         gain = float(request.settings["gain"])

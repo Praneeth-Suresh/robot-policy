@@ -91,7 +91,7 @@ class DemoCLITests(unittest.TestCase):
             self.assertIn(text, " ".join(output.split()))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            fixture = FixtureSet(root / "clean", root / "corrupt", root / "scenario")
+            fixture = FixtureSet(root / "clean", root / "corrupt", root / "scenario", root)
             with patch.object(PushTTask, "fixtures", return_value=fixture):
                 code, _, error = _invoke(["--out", str(root / "out")])
             self.assertEqual(code, 2)
@@ -106,7 +106,7 @@ class DemoCLITests(unittest.TestCase):
         for name in missing:
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                fixture = FixtureSet(root / "clean", root / "corrupt", root / "scenario")
+                fixture = FixtureSet(root / "clean", root / "corrupt", root / "scenario", root)
                 for original, copied in ((source.demo_clean, fixture.demo_clean),
                                          (source.demo_corrupt, fixture.demo_corrupt),
                                          (source.scenario, fixture.scenario)):

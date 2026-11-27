@@ -190,12 +190,46 @@ def _write_run(root: Path, scenario: str, variant: str, config: schema.Compariso
     }, directory)
 
 
+_CASES = {
+    "clean": {"path": "demos/clean", "doctor_exit": 0, "doctor_checks": []},
+    "no_split": {"path": "demos/no_split", "doctor_exit": 0,
+                 "doctor_checks": ["split.not_checked"]},
+    "corrupt": {"path": "demos/corrupt", "doctor_exit": 1,
+                "doctor_checks": ["shape.mismatch", "time.non_monotonic", "value.non_finite"]},
+    "leakage": {"path": "demos/leakage", "doctor_exit": 1, "doctor_checks": ["split.leakage"]},
+}
+_SCENARIO_RESULTS = {
+    "seeded_regression": (1, (4, 0, 0), {"success_not_worse": "pass", "separation_proxy": "fail"}),
+    "two_valid_trajectories": (0, (4, 0, 0), {"success_not_worse": "pass",
+                                              "separation_proxy": "pass"}),
+    "missing_signal": (2, (4, 0, 0), {"success_not_worse": "pass",
+                                      "separation_proxy": "unknown"}),
+    "mismatched_reset": (2, (2, 2, 0), {"success_not_worse": "pass",
+                                        "separation_proxy": "pass"}),
+    "truncated": (1, (4, 0, 0), {"success_not_worse": "fail", "separation_proxy": "pass"}),
+    "missing_pairs": (2, (2, 0, 2), {"success_not_worse": "pass", "separation_proxy": "pass"}),
+}
+_DEMO_EXIT = 1
+
+
+def _cases_document() -> dict[str, Any]:
+    cases: dict[str, Any] = dict(_CASES)
+    for name, (gate_exit, (done, bad, gone), rules) in _SCENARIO_RESULTS.items():
+        cases[name] = {
+            "path": f"scenarios/{name}", "compare_exit": 0, "gate_exit": gate_exit,
+            "coverage": {"completed": done, "incompatible": bad, "missing": gone},
+            "rules": rules,
+        }
+    return {"schema_version": schema.SCHEMA_VERSION, "demo_exit": _DEMO_EXIT, "cases": cases}
+
+
 def build_fixtures(root: Path) -> None:
     """Write only into an empty or absent directory; never delete existing files."""
     if root.exists() and (not root.is_dir() or any(root.iterdir())):
         raise FileExistsError(f"refusing to overwrite nonempty fixture directory {root}")
     root.mkdir(parents=True, exist_ok=True)
     _write_demos(root / "demos")
+    adapters.write_report_file(root / "cases.json", schema.canonical_json(_cases_document()))
     for name in _SCENARIOS:
         scenario = root / "scenarios" / name
         path = scenario / "comparison.json"
