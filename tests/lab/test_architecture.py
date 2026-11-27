@@ -30,6 +30,9 @@ EDGES = {
     "tasks": set(),
 }
 TASK_NAME = re.compile("pusht|push-t", re.IGNORECASE)
+TASK_TARGET = re.compile(r"^[A-Za-z_][\w.]*:[A-Za-z_]\w*$")
+ENTRY_POINT_READERS = {"tasks.registry", "testing", "cli_tasks"}
+GROUP = "gsp_lab.tasks"
 
 
 def module_name(path: Path) -> str:
@@ -65,6 +68,35 @@ def import_targets(item: ast.AST, parent: str) -> list[str]:
             if isinstance(target.value, str):
                 return [target.value]
     return []
+
+
+def hardcoded_task_maps(source: str) -> list[int]:
+    """Line numbers of dict literals that map names to "module:Class" strings."""
+    lines = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Dict) and any(
+            isinstance(value, ast.Constant)
+            and isinstance(value.value, str)
+            and TASK_TARGET.match(value.value)
+            for value in node.values
+        ):
+            lines.append(node.lineno)
+    return lines
+
+
+def entry_point_reads(source: str) -> list[int]:
+    """Line numbers that read entry points or name the gsp_lab.tasks group."""
+    lines = []
+    for node in ast.walk(ast.parse(source)):
+        named = (isinstance(node, ast.Attribute) and node.attr == "entry_points") or (
+            isinstance(node, ast.Name) and node.id == "entry_points"
+        )
+        grouped = (
+            isinstance(node, ast.Constant) and isinstance(node.value, str) and GROUP in node.value
+        )
+        if named or grouped:
+            lines.append(node.lineno)
+    return lines
 
 
 def lab_imports(source: str, module: str, *, package: bool = False) -> list[tuple[str, int]]:
@@ -152,7 +184,8 @@ class ArchitectureTests(unittest.TestCase):
 
     def test_core_has_no_task_names(self) -> None:
         failures = []
-        paths = [*LAB.glob("*.py"), *(LAB / "schema").glob("*.py"), *(LAB / "assets").glob("*")]
+        paths = [*LAB.glob("*.py"), *(LAB / "schema").glob("*.py"), *(LAB / "assets").glob("*"),
+                 *(LAB / "scaffold").glob("*.tmpl")]
         for path in sorted(paths):
             source = path.read_text()
             if path.name == "cli.py":
@@ -180,6 +213,67 @@ class ArchitectureTests(unittest.TestCase):
                     if root not in sys.stdlib_module_names and not target.startswith(PREFIX):
                         failures.append(f"{path.relative_to(ROOT)}:{item.lineno}: imports {target}")
         self.assertEqual(failures, [], "Default-install dependencies:\n" + "\n".join(failures))
+
+    def test_the_registry_keeps_no_hard_coded_task_dictionary(self) -> None:
+        failures = []
+        for path in sorted(LAB.rglob("*.py")):
+            source = path.read_text()
+            lines = hardcoded_task_maps(source)
+            failures.extend(f"{path.relative_to(ROOT)}:{line}" for line in lines)
+        registry = ast.parse((LAB / "tasks/registry.py").read_text())
+        names = {
+            target.id
+            for node in registry.body
+            if isinstance(node, (ast.Assign, ast.AnnAssign))
+            for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+            if isinstance(target, ast.Name)
+        }
+        self.assertNotIn("TASKS", names)
+        self.assertEqual(failures, [], "Hard-coded task map:\n" + "\n".join(failures))
+
+    def test_entry_points_are_read_only_in_registry_testing_and_cli_tasks(self) -> None:
+        failures = []
+        readers = set()
+        for path in sorted(LAB.rglob("*.py")):
+            module = module_name(path)
+            lines = entry_point_reads(path.read_text())
+            if lines and module in ENTRY_POINT_READERS:
+                readers.add(module)
+            elif lines:
+                failures.extend(f"{path.relative_to(ROOT)}:{line}" for line in lines)
+        self.assertEqual(failures, [], "Entry points read outside the allowed modules:\n"
+                         + "\n".join(failures))
+        self.assertIn("tasks.registry", readers)
+
+    def test_nothing_in_the_core_imports_the_conformance_kit(self) -> None:
+        importers = set()
+        for path in sorted(LAB.rglob("*.py")):
+            module = module_name(path)
+            targets = lab_imports(path.read_text(), module, package=path.name == "__init__.py")
+            if any(node_name(target) == "testing" for target, _ in targets):
+                importers.add(module)
+        self.assertEqual(importers, {"cli_tasks"})
+
+    def test_new_checkers_reject_synthetic_violations(self) -> None:
+        self.assertEqual(hardcoded_task_maps('TASKS = {"x": "pkg.mod:Cls"}'), [1])
+        self.assertEqual(hardcoded_task_maps('TASKS = {\n"x": "a b",\n"y": "pkg.mod:Cls"}'), [1])
+        self.assertEqual(hardcoded_task_maps('{"x": "plain", "y": 3}'), [])
+        self.assertEqual(entry_point_reads("importlib.metadata.entry_points(group='g')"), [1])
+        self.assertEqual(entry_point_reads("from importlib.metadata import entry_points"), [])
+        self.assertEqual(entry_point_reads("x = 1\ny = entry_points()"), [2])
+        self.assertEqual(entry_point_reads('GROUP = "gsp_lab.tasks"'), [1])
+        self.assertEqual(entry_point_reads("version('pymunk')"), [])
+        for source, module in (
+            ("from guided_streaming_policy.lab import testing", "doctor"),
+            ("from guided_streaming_policy.lab import testing", "tasks.registry"),
+            ("from guided_streaming_policy.lab import cli_tasks", "testing"),
+            ("from guided_streaming_policy.lab import cli", "testing"),
+            ("from guided_streaming_policy.lab import cli", "cli_tasks"),
+        ):
+            with self.subTest(source=source, module=module):
+                self.assertEqual(len(forbidden_edges(source, module)), 1)
+        self.assertEqual(
+            forbidden_edges("from guided_streaming_policy.lab import testing", "cli_tasks"), [])
 
     def test_checker_rejects_synthetic_violations(self) -> None:
         cases = (
