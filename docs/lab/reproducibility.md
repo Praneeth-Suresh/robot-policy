@@ -1,5 +1,7 @@
 # Reproducibility
 
+This page covers Policy Trace Lab: pinned versions, seeds and how to regenerate its committed artifacts. The rules for keeping the research code's behaviour unchanged are in [research reproducibility](../reproducibility.md).
+
 Output of the same input is byte-identical: result files use sorted keys, fixed indentation and no timestamps, and the checked-in goldens in `tests/fixtures/lab/golden/` pin that down.
 
 ## Pinned versions
