@@ -100,14 +100,14 @@ def _validate_setup(
         raise SetupError(f"Unknown variant {variant!r}; expected baseline or candidate")
     if config.task != adapter.name:
         raise SetupError(f"Comparison task {config.task!r} does not match adapter {adapter.name!r}")
-    probe = adapter.probe()
-    if config.simulator_version != probe.simulator_version:
-        raise SetupError(f"simulator version mismatch: expected {config.simulator_version!r}, "
-                         f"found {probe.simulator_version!r}")
     try:
         adapters.validate_conditions(adapter, config.conditions, require_runnable=True)
     except ValueError as error:
         raise SetupError(str(error)) from error
+    probe = adapter.probe()
+    if config.simulator_version != probe.simulator_version:
+        raise SetupError(f"simulator version mismatch: expected {config.simulator_version!r}, "
+                         f"found {probe.simulator_version!r}")
     for condition in config.conditions:
         if Path(condition).name != condition or condition in (".", ".."):
             raise SetupError(f"condition must be a single directory name: {condition!r}")
