@@ -2,6 +2,7 @@
 
 import io
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -96,6 +97,18 @@ class NewAndCheckTests(unittest.TestCase):
             self.assertEqual(_lab("tasks", "new", "Bad Name", "--out",
                                   str(Path(temporary) / "y"))[0], 2)
             self.assertFalse((Path(temporary) / "x").exists())
+
+    def test_new_accepts_a_relative_output_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            previous = os.getcwd()
+            os.chdir(temporary)
+            try:
+                code, stdout, error = _lab("tasks", "new", PACK, "--out", "relative-pack")
+            finally:
+                os.chdir(previous)
+            self.assertEqual(code, 0, error)
+            self.assertTrue((Path(temporary) / "relative-pack/rail/fixtures/cases.json").is_file())
+            self.assertIn(str(Path(temporary).resolve() / "relative-pack"), stdout)
 
     def test_usage_errors_exit_three(self) -> None:
         for arguments in (("tasks",), ("tasks", "new", "x"), ("tasks", "check"),

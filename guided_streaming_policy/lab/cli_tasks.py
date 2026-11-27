@@ -156,6 +156,7 @@ def _validate_scaffold(name: str, out: Path) -> str:
 
 def scaffold_pack(name: str, out: Path) -> Path:
     """Write a pack for `name` into `out` and build its fixtures; raise ScaffoldError if refused."""
+    out = out.resolve()
     module = _validate_scaffold(name, out)
     values = {"name": name, "module": module, "dist": name.replace("_", "-"),
               "Class": _camel(name)}
