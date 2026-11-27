@@ -16,6 +16,8 @@ from guided_streaming_policy.cli import main
 from guided_streaming_policy.lab import adapters, exporter, schema
 from guided_streaming_policy.lab.tasks import registry
 from guided_streaming_policy.lab.tasks.base import (
+    CONTRACT_VERSION,
+    ConditionSpec,
     FixtureSet,
     PolicySpec,
     PolicyStatus,
@@ -47,6 +49,7 @@ class ToyTask:
     """Rail positions in metres; all inputs, pins and fixtures live in a temporary root."""
 
     name = "toy"
+    contract_version = CONTRACT_VERSION
     root = Path("/unused-toy-root")
 
     def observation_schema(self) -> dict[str, Any]:
@@ -58,8 +61,8 @@ class ToyTask:
     def timebase(self) -> dict[str, Any]:
         return {"unit": "s", "mode": "fixed_dt", "dt": DT_SECONDS}
 
-    def conditions(self) -> tuple[str, ...]:
-        return ("rail",)
+    def conditions(self) -> tuple[ConditionSpec, ...]:
+        return (ConditionSpec("rail", "A cart on a one-dimensional rail."),)
 
     def policies(self) -> tuple[PolicySpec, ...]:
         return tuple(

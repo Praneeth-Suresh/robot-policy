@@ -200,8 +200,7 @@ def run_pusht_trial(request: TrialRequest, root: Path) -> TrialRecord:
     try:
         with _working_directory(root):
             adapter = PushTTask(root)
-            if request.condition not in adapter.conditions():
-                raise ValueError(f"Unsupported condition {request.condition!r}")
+            adapters.validate_conditions(adapter, (request.condition,), require_runnable=True)
             spec = adapters.find_policy(adapter, request.policy)
             module_name, function_name = spec.entry_point.split(":")
             module = importlib.import_module(module_name)

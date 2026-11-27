@@ -12,6 +12,8 @@ from typing import Any, Iterator
 
 from guided_streaming_policy.lab.schema import Episode
 from guided_streaming_policy.lab.tasks.base import (
+    CONTRACT_VERSION,
+    ConditionSpec,
     FixtureSet,
     PolicySpec,
     PolicyStatus,
@@ -33,6 +35,17 @@ _DEMONSTRATION_ZIP = "Push-T/data/pusht_cchi_v7_replay.zarr.zip"
 _DEPENDENCIES = ("torch", "numpy", "pymunk", "zarr", "gym", "diffusers")
 
 
+_CONDITIONS = (
+    ConditionSpec("static", "Fixed obstacle at normalized [-0.3, -0.5]; runs through gsp lab run."),
+    ConditionSpec(
+        "dynamic",
+        "Obstacle moving sinusoidally; runs through the research scripts only "
+        "(gsp run infer-dynamic-*), not yet through gsp lab run.",
+        runnable=False,
+    ),
+)
+
+
 def _dependencies() -> dict[str, bool]:
     return {name: importlib.util.find_spec(name) is not None for name in _DEPENDENCIES}
 
@@ -50,6 +63,7 @@ class PushTTask:
     """Expose static reference policies, simulator prerequisites and trace schemas."""
 
     name = "pusht"
+    contract_version = CONTRACT_VERSION
 
     def __init__(self, root: Path | None = None) -> None:
         self._root = repo_root() if root is None else root
@@ -60,9 +74,9 @@ class PushTTask:
         return FixtureSet(root / "demos/clean", root / "demos/corrupt",
                           root / "scenarios/seeded_regression")
 
-    def conditions(self) -> tuple[str, ...]:
-        """Return the supported static simulator condition."""
-        return ("static",)
+    def conditions(self) -> tuple[ConditionSpec, ...]:
+        """Return the static condition and the declared, not yet runnable dynamic one."""
+        return _CONDITIONS
 
     def run_trial(self, request: TrialRequest) -> TrialRecord:
         """Run and record the guided episode, raising TrialCrashed on failure."""

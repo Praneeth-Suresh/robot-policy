@@ -6,6 +6,8 @@ from typing import Any
 
 from guided_streaming_policy.lab import adapters, schema
 from guided_streaming_policy.lab.tasks.base import (
+    CONTRACT_VERSION,
+    ConditionSpec,
     FixtureSet,
     PolicySpec,
     PolicyStatus,
@@ -95,6 +97,7 @@ class FakeTask:
     """Deterministic complete adapter with temporary, reproducible checkpoint pins."""
 
     name = "toy"
+    contract_version = CONTRACT_VERSION
     crash_seeds: tuple[int, ...] = ()
     unavailable_reason: str | None = None
     changed_pin = False
@@ -125,9 +128,9 @@ class FakeTask:
         """Return fixed simulator identity without external dependencies."""
         return ProbeResult("toy-sim", "1.0", {}, {})
 
-    def conditions(self) -> tuple[str, ...]:
+    def conditions(self) -> tuple[ConditionSpec, ...]:
         """Return the one supported fixture condition."""
-        return ("c1",)
+        return (ConditionSpec("c1", "The one fixture condition."),)
 
     def observation_schema(self) -> dict[str, Any]:
         """Reuse the standard synthetic observation builder."""

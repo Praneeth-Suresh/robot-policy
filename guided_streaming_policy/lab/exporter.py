@@ -104,9 +104,11 @@ def _validate_setup(
     if config.simulator_version != probe.simulator_version:
         raise SetupError(f"simulator version mismatch: expected {config.simulator_version!r}, "
                          f"found {probe.simulator_version!r}")
+    try:
+        adapters.validate_conditions(adapter, config.conditions, require_runnable=True)
+    except ValueError as error:
+        raise SetupError(str(error)) from error
     for condition in config.conditions:
-        if condition not in adapter.conditions():
-            raise SetupError(f"Unknown condition {condition!r}; supported: {adapter.conditions()}")
         if Path(condition).name != condition or condition in (".", ".."):
             raise SetupError(f"condition must be a single directory name: {condition!r}")
     _validate_output_directory(out_dir)
