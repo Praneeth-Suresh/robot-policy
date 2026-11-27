@@ -18,7 +18,7 @@ __all__: list[str] = []
 ROOT = Path(__file__).resolve().parents[2]
 POLICY_NAMES = {"pusht/naive", "pusht/ccg", "pusht/steg", "pusht/dp", "pusht/flow"}
 DEPENDENCIES = ("torch", "numpy", "pymunk", "zarr", "gym", "diffusers")
-PIN_REVIEW = "pin changed: review lab/pins.json deliberately"
+PIN_REVIEW = "pin changed: review guided_streaming_policy/lab/tasks/pusht/pins.json deliberately"
 
 
 class TaskTests(unittest.TestCase):

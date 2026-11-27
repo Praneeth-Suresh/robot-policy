@@ -9,16 +9,16 @@ Output of the same input is byte-identical: result files use sorted keys, fixed 
 | Item | Value |
 | --- | --- |
 | Python (project environment) | 3.10 |
-| Simulator | pymunk 7.2.0 (`pyproject.toml`, `lab/pins.json`, comparison config `simulator_version`) |
+| Simulator | pymunk 7.2.0 (`pyproject.toml`, `guided_streaming_policy/lab/tasks/pusht/pins.json`, comparison config `simulator_version`) |
 | Other pinned packages | the `pusht` extra in `pyproject.toml` (torch 2.9.1, numpy 1.26.4, zarr 2.18.3, gym 0.26.2, diffusers 0.36.0) and `uv.lock` |
-| Checkpoints | sha256 values in `lab/pins.json`; `gsp lab policies` prints their prefixes and a test fails if any pin changes |
+| Checkpoints | sha256 values in `guided_streaming_policy/lab/tasks/pusht/pins.json`; `gsp lab policies` prints their prefixes and a test fails if any pin changes |
 | Dev tools | `ruff`, `mypy`, `vulture`, `jsonschema` in the `dev` extra |
 | Trace schema | `0.1` |
 
-Changing a pin is a deliberate, reviewed edit of `lab/pins.json`. To recompute it after a deliberate change:
+Changing a pin is a deliberate, reviewed edit of `guided_streaming_policy/lab/tasks/pusht/pins.json`. To recompute it after a deliberate change:
 
 ```bash
-.venv/bin/python -c "from pathlib import Path; from guided_streaming_policy.lab import schema; from guided_streaming_policy.lab.tasks.pusht.pins import pin_file_document; Path('lab/pins.json').write_text(schema.canonical_json(pin_file_document(Path('.').resolve())), encoding='utf-8')"
+.venv/bin/python -c "from pathlib import Path; from guided_streaming_policy.lab import schema; from guided_streaming_policy.lab.tasks.pusht.pins import pin_file_document; Path('guided_streaming_policy/lab/tasks/pusht/pins.json').write_text(schema.canonical_json(pin_file_document(Path('.').resolve())), encoding='utf-8')"
 ```
 
 ## Seeds
@@ -30,9 +30,9 @@ Every seed is listed explicitly in a comparison config. The seeds of the validat
 | Artifact | How | Drift check |
 | --- | --- | --- |
 | `schemas/*.schema.json` | `.venv/bin/python -m guided_streaming_policy.lab.schema schemas` | `tests/lab/test_schema.py` |
-| `tests/fixtures/lab/pusht/` | `.venv/bin/python -m tests.lab.fixture_builders <empty dir>`, then replace the committed tree | `tests/lab/test_fixtures.py` |
+| `guided_streaming_policy/lab/tasks/pusht/fixtures/` | `.venv/bin/python -m tests.lab.fixture_builders <empty dir>`, then replace the committed tree | `tests/lab/test_fixtures.py` |
 | `tests/fixtures/lab/golden/*` | produced by the builders in the test that names the file; the test says how if the file is missing | the same tests |
-| `lab/pins.json` | the command above | `tests/lab/test_tasks.py` |
+| `guided_streaming_policy/lab/tasks/pusht/pins.json` | the command above | `tests/lab/test_tasks.py` |
 | `guided_streaming_policy/lab/assets/*.svg` | copy the same-named file from `docs/brand/` | `tests/lab/test_report_tokens.py` |
 | `docs/brand/*.svg`, `social-preview.png` | designed by hand; `tokens.json` is the source of truth for colour, and a test checks the report CSS against it | `tests/lab/test_report_tokens.py` |
 | `docs/img/*.png` | see below | `tests/lab/test_docs.py` (size, alt text, caption) |

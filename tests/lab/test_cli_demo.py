@@ -95,7 +95,7 @@ class DemoCLITests(unittest.TestCase):
             with patch.object(PushTTask, "fixtures", return_value=fixture):
                 code, _, error = _invoke(["--out", str(root / "out")])
             self.assertEqual(code, 2)
-            self.assertIn("fixtures not found; run from a source checkout of the repository", error)
+            self.assertIn("fixtures not found for task 'pusht'", error)
             self.assertFalse((root / "out").exists())
 
     def test_partial_fixture_files_are_reported_before_output_is_created(self) -> None:
@@ -121,7 +121,7 @@ class DemoCLITests(unittest.TestCase):
                 with patch.object(PushTTask, "fixtures", return_value=fixture):
                     code, _, error = _invoke(["--out", str(root / "out")])
                 self.assertEqual(code, 2)
-                self.assertIn("fixtures not found; run from a source checkout of the repository",
+                self.assertIn("fixtures not found for task 'pusht'",
                               error)
                 self.assertFalse((root / "out").exists())
 

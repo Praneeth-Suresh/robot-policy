@@ -17,7 +17,7 @@ from tests.lab.fixture_builders import FIRST_VIOLATION_STEP, build_fixtures
 __all__: list[str] = []
 
 _ROOT = Path(__file__).resolve().parents[2]
-_FIXTURES = _ROOT / "tests/fixtures/lab/pusht"
+_FIXTURES = _ROOT / "guided_streaming_policy/lab/tasks/pusht/fixtures"
 MAX_FIXTURE_BYTES = 1_500_000
 _DEMOS = {"clean": 0, "no_split": 0, "corrupt": 1, "leakage": 1}
 _SCENARIOS = {"seeded_regression": (0, 1), "two_valid_trajectories": (0, 0),
@@ -51,6 +51,13 @@ class FixtureTests(unittest.TestCase):
         self.assertEqual(fixtures.demo_clean, _FIXTURES / "demos/clean")
         self.assertEqual(fixtures.demo_corrupt, _FIXTURES / "demos/corrupt")
         self.assertEqual(fixtures.scenario, _FIXTURES / "scenarios/seeded_regression")
+
+    def test_every_fixture_file_is_covered_by_the_package_data_patterns(self) -> None:
+        pyproject = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        for pattern in ("fixtures/**/*.json", "fixtures/**/*.jsonl", "pins.json"):
+            self.assertIn(f'"{pattern}"', pyproject)
+        suffixes = {path.suffix for path in _FIXTURES.rglob("*") if path.is_file()}
+        self.assertLessEqual(suffixes, {".json", ".jsonl"})
 
     def test_manifests_and_machine_configs_validate(self) -> None:
         try:

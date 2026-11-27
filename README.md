@@ -260,7 +260,7 @@ Checks: `schema.missing_required`, `shape.mismatch`, `value.non_finite`, `time.n
 - **Example:**
 
 ```bash offline exit=1
-gsp lab doctor tests/fixtures/lab/pusht/demos/corrupt --out out/doctor-corrupt
+gsp lab doctor guided_streaming_policy/lab/tasks/pusht/fixtures/demos/corrupt --out out/doctor-corrupt
 ```
 
 - **Example output:**
@@ -316,7 +316,7 @@ Pair statuses: `completed` (both episodes exist, reset fingerprints match, only 
 - **Example:**
 
 ```bash offline exit=0
-gsp lab compare tests/fixtures/lab/pusht/scenarios/seeded_regression/baseline tests/fixtures/lab/pusht/scenarios/seeded_regression/candidate --comparison tests/fixtures/lab/pusht/scenarios/seeded_regression/comparison.json --out out/compare-demo
+gsp lab compare guided_streaming_policy/lab/tasks/pusht/fixtures/scenarios/seeded_regression/baseline guided_streaming_policy/lab/tasks/pusht/fixtures/scenarios/seeded_regression/candidate --comparison guided_streaming_policy/lab/tasks/pusht/fixtures/scenarios/seeded_regression/comparison.json --out out/compare-demo
 ```
 
 - **Example output:**
@@ -349,7 +349,7 @@ The gate re-checks the trace file hashes recorded in `compare.json` and refuses 
 - **Example:**
 
 ```bash offline exit=1
-gsp lab gate out/compare-demo/compare.json --gate tests/fixtures/lab/pusht/scenarios/seeded_regression/gate.json --out out/gate-demo
+gsp lab gate out/compare-demo/compare.json --gate guided_streaming_policy/lab/tasks/pusht/fixtures/scenarios/seeded_regression/gate.json --out out/gate-demo
 ```
 
 - **Example output:**
@@ -439,7 +439,7 @@ The repository's workflow `.github/workflows/lab.yml` does steps 1 and 2.
 
 ## Play with the reference policies
 
-Every Push-T method in this repository is registered as a reference policy: a thin adapter around the unchanged runner, with its checkpoint hash and resolved configuration hash pinned in `lab/pins.json`. No policy is the default. Any of them can be the baseline or the candidate. A test fails if a pin changes; changing a pin is a deliberate, reviewed edit. List them with `gsp lab policies`.
+Every Push-T method in this repository is registered as a reference policy: a thin adapter around the unchanged runner, with its checkpoint hash and resolved configuration hash pinned in `guided_streaming_policy/lab/tasks/pusht/pins.json`. No policy is the default. Any of them can be the baseline or the candidate. A test fails if a pin changes; changing a pin is a deliberate, reviewed edit. List them with `gsp lab policies`.
 
 | Policy | What it is | Tunable settings (default) | Paper |
 | --- | --- | --- | --- |
@@ -577,7 +577,7 @@ Verdict order: invalid input or coverage beyond the limits gives exit 2; a requi
 | `Output directory must be empty; refusing to overwrite <dir>` (run) | The run directory already has files | Use a new `--out`. Earlier runs are never overwritten. |
 | `Policy pusht/dp: unavailable: missing checkpoint ...` | A checkpoint is not in `Push-T/checkpoints/` | Fetch it as described in [Setup and assets](#setup-and-assets). `gsp lab policies` shows the status of every policy. |
 | `Policy pusht/dp: unavailable: missing Python package ...` | The simulator environment is not installed | Install the `pusht` extra. |
-| `pin changed: pusht/dp` | A checkpoint file or the resolved configuration differs from `lab/pins.json` | Restore the original checkpoint. If the change is deliberate, edit the pin in a reviewed commit. |
+| `pin changed: pusht/dp` | A checkpoint file or the resolved configuration differs from `guided_streaming_policy/lab/tasks/pusht/pins.json` | Restore the original checkpoint. If the change is deliberate, edit the pin in a reviewed commit. |
 | `simulator version mismatch: expected '7.2.0', ...` | The comparison config names another pymunk version than the installed one | Install the pinned version, or change `simulator_version` and record why. |
 | `Policy pusht/dp: Unknown tunable 'x'; valid keys: ...` | An override names a setting the policy does not declare | Use one of the listed keys. |
 | `intended_differences[0]: expected policy or overrides.<existing key>` | The entry is misspelled or not in any variant's overrides | Fix the entry or add the override. |
@@ -586,7 +586,7 @@ Verdict order: invalid input or coverage beyond the limits gives exit 2; a requi
 | `missing [static seed=2]: missing episode in candidate run` (compare) | A trial was not recorded | Rerun the missing variant into a new directory. |
 | `incompatible pairs 2 exceed maximum 0`, `missing pairs 2 exceed maximum 0`, `completed pairs 3 below minimum 5` (gate) | Coverage is below what the gate config requires | Fix the runs. Raise the limits only in a reviewed gate-config change. |
 | `insufficient evidence: separation_proxy: signal action_executed.target was not collected` (gate) | The traces lack the signal the rule needs | Record the signal, or change the rule in a reviewed config. The gate never guesses. |
-| `fixtures not found; run from a source checkout of the repository` (demo) | The demo reads `tests/fixtures/lab/`, which is not in a pip-installed wheel | Run it from a clone of the repository. |
+| `fixtures not found for task 'x'` (demo) | The task pack ships no usable synthetic fixture set | Reinstall the pack, or run `gsp lab tasks check x` to see which fixture case is missing. |
 | `gsp lab <command>: error: the following arguments are required: ...` (exit 3) | Missing argument | See the usage line above the message. |
 | The report shows no replay | JavaScript is disabled | Enable it. The verdict, coverage, results and regression list are readable without it. |
 

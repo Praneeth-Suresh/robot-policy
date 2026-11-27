@@ -18,7 +18,7 @@ The simulator and the native demonstration data stay untouched. Adapters convert
 | `compare.json` | `gsp lab compare` | gate, report |
 | `gate.json` and the exit code | `gsp lab gate` | CI, report |
 | `report.html` | `gsp lab report` | you, reviewers |
-| `lab/pins.json` | maintainers (deliberate edit) | `gsp lab policies`, `gsp lab run`, tests |
+| `guided_streaming_policy/lab/tasks/pusht/pins.json` | maintainers (deliberate edit) | `gsp lab policies`, `gsp lab run`, tests |
 
 ## Modules
 

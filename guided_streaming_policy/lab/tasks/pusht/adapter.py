@@ -6,6 +6,7 @@ and the block angle modulo 2*pi radians.
 """
 
 import importlib.metadata
+import importlib.resources
 import importlib.util
 from pathlib import Path
 from typing import Any, Iterator
@@ -27,6 +28,7 @@ from guided_streaming_policy.paths import repo_root
 
 __all__ = ["PushTTask"]
 
+_PACKAGE = "guided_streaming_policy.lab.tasks.pusht"
 _POSITION_DIMENSIONS = 2
 _CONTROL_DT_SECONDS = 0.1
 _WINDOW_SIZE_PIXELS = 512
@@ -69,8 +71,8 @@ class PushTTask:
         self._root = repo_root() if root is None else root
 
     def fixtures(self) -> FixtureSet:
-        """Locate committed synthetic fixtures in a source checkout."""
-        root = self._root / "tests/fixtures/lab/pusht"
+        """Locate the synthetic fixtures packaged with this task."""
+        root = Path(str(importlib.resources.files(_PACKAGE) / "fixtures"))
         return FixtureSet(root / "demos/clean", root / "demos/corrupt",
                           root / "scenarios/seeded_regression")
 
@@ -156,8 +158,8 @@ class PushTTask:
         return read_demonstrations(path)
 
     def pins_path(self) -> Path:
-        """Return the checked-in pin document under the repository root."""
-        return self._root / "lab" / "pins.json"
+        """Return the checked-in pin document packaged with this task."""
+        return Path(str(importlib.resources.files(_PACKAGE) / "pins.json"))
 
     def current_pins(self) -> dict[str, Any]:
         """Recompute simulator metadata and file/configuration hashes from disk."""

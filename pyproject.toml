@@ -112,3 +112,4 @@ min_confidence = 80
 
 [tool.setuptools.package-data]
 "guided_streaming_policy.lab" = ["assets/*.css", "assets/*.js", "assets/*.svg"]
+"guided_streaming_policy.lab.tasks.pusht" = ["pins.json", "fixtures/**/*.json", "fixtures/**/*.jsonl"]

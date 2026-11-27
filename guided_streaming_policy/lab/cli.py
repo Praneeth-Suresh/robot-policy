@@ -21,7 +21,7 @@ _EXIT_OK = 0
 _EXIT_INVALID_INPUT = 2
 _EXIT_USAGE_OR_INTERNAL = 3
 _LAB_HELP = "Policy Trace Lab: validate robot data, compare policies, replay regressions."
-_FIXTURES_MISSING = "fixtures not found; run from a source checkout of the repository"
+_FIXTURES_MISSING = "fixtures not found for task {name!r}: no usable synthetic fixture set"
 _DOCTOR_EXITS = (
     "Exit codes: 0 clean (no errors), 1 errors found, "
     "2 input unreadable or output would overwrite, 3 usage or internal error."
@@ -275,16 +275,17 @@ def _run_doctor(args: argparse.Namespace, adapter: TaskAdapter) -> int:
 
 def _demo_fixtures(adapter: TaskAdapter) -> FixtureSet:
     fixtures = adapter.fixtures()
+    missing = _FIXTURES_MISSING.format(name=adapter.name)
     scenario = fixtures.scenario
     required = [scenario / name for name in ("comparison.json", "gate.json")]
     directories = (fixtures.demo_clean, fixtures.demo_corrupt,
                    scenario / "baseline", scenario / "candidate")
     for directory in directories:
         if not directory.is_dir():
-            raise FileNotFoundError(_FIXTURES_MISSING)
+            raise FileNotFoundError(missing)
         episodes = [path for path in directory.iterdir() if path.is_dir()]
         if not episodes:
-            raise FileNotFoundError(_FIXTURES_MISSING)
+            raise FileNotFoundError(missing)
         required.extend(path / name for path in episodes
                         for name in ("manifest.json", "steps.jsonl"))
     for variant in ("baseline", "candidate"):
@@ -293,11 +294,11 @@ def _demo_fixtures(adapter: TaskAdapter) -> FixtureSet:
         try:
             manifest = schema.read_run_manifest(directory)
         except schema.TraceReadError as error:
-            raise FileNotFoundError(_FIXTURES_MISSING) from error
+            raise FileNotFoundError(missing) from error
         required.extend(directory / cell["episode_id"] / name for cell in manifest["episodes"]
                         for name in ("manifest.json", "steps.jsonl"))
     if not all(path.is_file() for path in required):
-        raise FileNotFoundError(_FIXTURES_MISSING)
+        raise FileNotFoundError(missing)
     return fixtures
 
 
