@@ -1,11 +1,16 @@
 """Deterministic synthetic trace builders shared by lab tests."""
 
+import tempfile
+import unittest
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
 from guided_streaming_policy.lab import adapters, schema
+from guided_streaming_policy.lab.tasks import registry
 from guided_streaming_policy.lab.tasks.base import (
+    CONTRACT_VERSION,
+    ConditionSpec,
     FixtureSet,
     PolicySpec,
     PolicyStatus,
@@ -16,9 +21,9 @@ from guided_streaming_policy.lab.tasks.base import (
     TunableSpec,
 )
 
-__all__ = ["demo_episode", "rollout_episode", "write_traces", "FakeTask", "comparison_document",
-           "comparison_config", "geometry_rollout", "rollout_run", "gate_document", "gate_config",
-           "gate_comparison", "gate_episodes", "report_pipeline"]
+__all__ = ["register_fake_task", "demo_episode", "rollout_episode", "write_traces", "FakeTask",
+           "comparison_document", "comparison_config", "geometry_rollout", "rollout_run",
+           "gate_document", "gate_config", "gate_comparison", "gate_episodes", "report_pipeline"]
 
 _DT_SECONDS = 0.1
 _TIME_DECIMALS = 6
@@ -95,6 +100,7 @@ class FakeTask:
     """Deterministic complete adapter with temporary, reproducible checkpoint pins."""
 
     name = "toy"
+    contract_version = CONTRACT_VERSION
     crash_seeds: tuple[int, ...] = ()
     unavailable_reason: str | None = None
     changed_pin = False
@@ -108,7 +114,7 @@ class FakeTask:
     def fixtures(self) -> FixtureSet:
         """Expose temporary locations for protocol completeness; no demo inputs exist."""
         root = self._pins.parent
-        return FixtureSet(root / "clean", root / "corrupt", root / "scenario")
+        return FixtureSet(root / "clean", root / "corrupt", root / "scenario", root)
 
     def policies(self) -> tuple[PolicySpec, ...]:
         """Return two policies with the same scalar tunable."""
@@ -125,9 +131,9 @@ class FakeTask:
         """Return fixed simulator identity without external dependencies."""
         return ProbeResult("toy-sim", "1.0", {}, {})
 
-    def conditions(self) -> tuple[str, ...]:
+    def conditions(self) -> tuple[ConditionSpec, ...]:
         """Return the one supported fixture condition."""
-        return ("c1",)
+        return (ConditionSpec("c1", "The one fixture condition."),)
 
     def observation_schema(self) -> dict[str, Any]:
         """Reuse the standard synthetic observation builder."""
@@ -167,6 +173,14 @@ class FakeTask:
         if request.seed in self.crash_seeds:
             raise TrialCrashed("fixture crash", record)
         return record
+
+
+def register_fake_task(test: unittest.TestCase) -> None:
+    """Register the toy fixture task so comparison and gate commands can resolve it."""
+    directory = tempfile.TemporaryDirectory()
+    test.addCleanup(directory.cleanup)
+    registry.register("toy", lambda: FakeTask(Path(directory.name)))
+    test.addCleanup(registry.unregister, "toy")
 
 
 def comparison_document(seeds: tuple[int, ...] = (0, 1)) -> dict[str, Any]:

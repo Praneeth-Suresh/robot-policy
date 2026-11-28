@@ -6,12 +6,15 @@ and the block angle modulo 2*pi radians.
 """
 
 import importlib.metadata
+import importlib.resources
 import importlib.util
 from pathlib import Path
 from typing import Any, Iterator
 
 from guided_streaming_policy.lab.schema import Episode
 from guided_streaming_policy.lab.tasks.base import (
+    CONTRACT_VERSION,
+    ConditionSpec,
     FixtureSet,
     PolicySpec,
     PolicyStatus,
@@ -25,12 +28,24 @@ from guided_streaming_policy.paths import repo_root
 
 __all__ = ["PushTTask"]
 
+_PACKAGE = "guided_streaming_policy.lab.tasks.pusht"
 _POSITION_DIMENSIONS = 2
 _CONTROL_DT_SECONDS = 0.1
 _WINDOW_SIZE_PIXELS = 512
 _PIXEL_FRAME = f"window_{_WINDOW_SIZE_PIXELS}_y_down"
 _DEMONSTRATION_ZIP = "Push-T/data/pusht_cchi_v7_replay.zarr.zip"
 _DEPENDENCIES = ("torch", "numpy", "pymunk", "zarr", "gym", "diffusers")
+
+
+_CONDITIONS = (
+    ConditionSpec("static", "Fixed obstacle at normalized [-0.3, -0.5]; runs through gsp lab run."),
+    ConditionSpec(
+        "dynamic",
+        "Obstacle moving sinusoidally; runs through the research scripts only "
+        "(gsp run infer-dynamic-*), not yet through gsp lab run.",
+        runnable=False,
+    ),
+)
 
 
 def _dependencies() -> dict[str, bool]:
@@ -50,19 +65,20 @@ class PushTTask:
     """Expose static reference policies, simulator prerequisites and trace schemas."""
 
     name = "pusht"
+    contract_version = CONTRACT_VERSION
 
     def __init__(self, root: Path | None = None) -> None:
         self._root = repo_root() if root is None else root
 
     def fixtures(self) -> FixtureSet:
-        """Locate committed synthetic fixtures in a source checkout."""
-        root = self._root / "tests/fixtures/lab/pusht"
+        """Locate the synthetic fixtures packaged with this task."""
+        root = Path(str(importlib.resources.files(_PACKAGE) / "fixtures"))
         return FixtureSet(root / "demos/clean", root / "demos/corrupt",
-                          root / "scenarios/seeded_regression")
+                          root / "scenarios/seeded_regression", root)
 
-    def conditions(self) -> tuple[str, ...]:
-        """Return the supported static simulator condition."""
-        return ("static",)
+    def conditions(self) -> tuple[ConditionSpec, ...]:
+        """Return the static condition and the declared, not yet runnable dynamic one."""
+        return _CONDITIONS
 
     def run_trial(self, request: TrialRequest) -> TrialRecord:
         """Run and record the guided episode, raising TrialCrashed on failure."""
@@ -142,8 +158,8 @@ class PushTTask:
         return read_demonstrations(path)
 
     def pins_path(self) -> Path:
-        """Return the checked-in pin document under the repository root."""
-        return self._root / "lab" / "pins.json"
+        """Return the checked-in pin document packaged with this task."""
+        return Path(str(importlib.resources.files(_PACKAGE) / "pins.json"))
 
     def current_pins(self) -> dict[str, Any]:
         """Recompute simulator metadata and file/configuration hashes from disk."""

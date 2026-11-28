@@ -8,6 +8,7 @@ No run or episode files are written, and no missing telemetry is reconstructed.
 from __future__ import annotations
 
 import json
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,7 +17,7 @@ from typing import Any
 from guided_streaming_policy.lab import schema
 
 __all__ = ["build_comparison", "compare_exit_code", "render_summary",
-           "load_comparison_result", "verify_trace_hashes"]
+           "load_comparison_result", "verify_trace_hashes", "comparison_errors"]
 
 _VARIANTS = ("baseline", "candidate")
 _HASH_PREFIX_CHARACTERS = 12
@@ -279,3 +280,91 @@ def verify_trace_hashes(document: dict[str, Any], base_dir: Path) -> list[str]:
                 except OSError as error:
                     messages.append(f"trace hash unreadable: {variant} {path}: {error}")
     return messages
+
+
+def _shape_type(value: Any, kind: str) -> bool:
+    types: dict[str, type[Any] | tuple[type[Any], ...]] = {
+        "object": dict, "array": list, "string": str, "integer": int,
+        "number": (int, float), "boolean": bool, "null": type(None),
+    }
+    return isinstance(value, types[kind]) and not (
+        kind in ("integer", "number") and isinstance(value, bool)
+    )
+
+
+def _shape(value: Any, spec: dict[str, Any], path: str) -> None:
+    """Validate the comparison schema's closed structural subset without dependencies."""
+    if "anyOf" in spec:
+        if not any(_matches(value, option) for option in spec["anyOf"]):
+            raise ValueError(f"{path}: invalid comparison entry")
+        return
+    kinds = spec.get("type", [])
+    kinds = [kinds] if isinstance(kinds, str) else kinds
+    if kinds and not any(_shape_type(value, kind) for kind in kinds):
+        raise ValueError(f"{path}: expected {kinds}")
+    _literal_shape(value, spec, path)
+    if isinstance(value, dict):
+        _object_shape(value, spec, path)
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _shape(item, spec["items"], f"{path}[{index}]")
+    elif type(value) in (int, float):
+        _number_shape(value, spec, path)
+
+
+def _literal_shape(value: Any, spec: dict[str, Any], path: str) -> None:
+    if "const" in spec and value != spec["const"]:
+        raise ValueError(f"{path}: unsupported value {value!r}")
+    if "enum" in spec and value not in spec["enum"]:
+        raise ValueError(f"{path}: unsupported value {value!r}")
+
+
+def _matches(value: Any, spec: dict[str, Any]) -> bool:
+    try:
+        _shape(value, spec, "entry")
+        return True
+    except ValueError:
+        return False
+
+
+def _object_shape(value: dict[str, Any], spec: dict[str, Any], path: str) -> None:
+    missing = set(spec["required"]) - value.keys()
+    unknown = value.keys() - spec["properties"].keys()
+    if missing or unknown:
+        raise ValueError(f"{path}: missing keys {sorted(missing)}; unknown keys {sorted(unknown)}")
+    for key, item in value.items():
+        _shape(item, spec["properties"][key], f"{path}.{key}")
+
+
+def _number_shape(value: float, spec: dict[str, Any], path: str) -> None:
+    if not math.isfinite(value) or not spec.get("minimum", -math.inf) <= value <= spec.get(
+        "maximum", math.inf
+    ):
+        raise ValueError(f"{path}: invalid comparison number")
+
+
+def comparison_errors(document: dict[str, Any]) -> list[str]:
+    """Return structural and consistency problems of a recorded comparison document."""
+    try:
+        _shape(document, schema.compare_result_json_schema(), "comparison")
+        counts = document["coverage"]
+        for status in ("completed", "incompatible", "missing"):
+            if counts[status] != sum(p["status"] == status for p in document["pairs"]):
+                raise ValueError(f"coverage.{status}: does not match pairs")
+        if counts["expected"] != len(document["pairs"]):
+            raise ValueError("coverage.expected: does not match pairs")
+        if any(
+            p[side] is None
+            for p in document["pairs"]
+            if p["status"] == "completed"
+            for side in _VARIANTS
+        ):
+            raise ValueError("completed pair has an absent episode")
+        if document["deltas"]["native_success"]["n"] != counts["completed"]:
+            raise ValueError("deltas.native_success.n: does not match completed pairs")
+        if not document["valid"]:
+            return document["invalid_reasons"] or (
+                ["comparison is not valid"] if counts["completed"] == counts["expected"] else [])
+        return list(document["invalid_reasons"])
+    except (ValueError, TypeError, KeyError, OverflowError) as error:
+        return [f"invalid comparison: {error}"]

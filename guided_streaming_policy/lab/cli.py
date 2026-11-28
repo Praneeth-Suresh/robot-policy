@@ -11,6 +11,7 @@ from typing import Any, NoReturn
 
 from guided_streaming_policy.lab import adapters, doctor, exporter, gate, pairing, report, schema
 from guided_streaming_policy.lab.adapters import format_policy_rows, load_pins
+from guided_streaming_policy.lab.cli_tasks import add_tasks_parser, run_tasks
 from guided_streaming_policy.lab.tasks import registry
 from guided_streaming_policy.lab.tasks.base import FixtureSet, TaskAdapter
 from guided_streaming_policy.lab.tasks.registry import get_task
@@ -21,7 +22,7 @@ _EXIT_OK = 0
 _EXIT_INVALID_INPUT = 2
 _EXIT_USAGE_OR_INTERNAL = 3
 _LAB_HELP = "Policy Trace Lab: validate robot data, compare policies, replay regressions."
-_FIXTURES_MISSING = "fixtures not found; run from a source checkout of the repository"
+_FIXTURES_MISSING = "fixtures not found for task {name!r}: no usable synthetic fixture set"
 _DOCTOR_EXITS = (
     "Exit codes: 0 clean (no errors), 1 errors found, "
     "2 input unreadable or output would overwrite, 3 usage or internal error."
@@ -75,6 +76,7 @@ def add_lab_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParse
     _add_gate_parser(commands)
     _add_report_parser(commands)
     _add_demo_parser(commands)
+    add_tasks_parser(commands)
 
 
 def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) -> None:
@@ -92,7 +94,10 @@ def _add_doctor_parser(commands: argparse._SubParsersAction[LabArgumentParser]) 
 
 
 def _add_run_parser(commands: argparse._SubParsersAction[LabArgumentParser], task: str) -> None:
-    assets = ", ".join(sorted(registry.get_task(task).probe().assets))
+    try:
+        assets = ", ".join(sorted(registry.get_task(task).probe().assets))
+    except (KeyError, registry.TaskLoadError):
+        assets = "(task not loadable)"
     parser = commands.add_parser(
         "run", help="Run the simulator and record Policy Trace Lab episodes.",
         description="Policy Trace Lab runs the simulator for the comparison's explicit "
@@ -179,9 +184,24 @@ def _report_file(compare_path: Path, gate_path: Path | None, out: Path | None) -
     return output
 
 
+def _require_known_conditions(task: str, conditions: Iterable[str]) -> None:
+    """Refuse conditions the task pack does not declare, listing the supported names."""
+    try:
+        adapters.validate_conditions(get_task(task), tuple(conditions))
+    except (KeyError, registry.TaskLoadError, ValueError) as error:
+        raise schema.ConfigError(str(error)) from error
+
+
 def _gate_document(compare_path: Path, gate_path: Path, out: Path | None) -> dict[str, Any]:
     config = schema.load_gate_config(gate_path)
     comparison = pairing.load_comparison_result(compare_path)
+    try:
+        task = comparison["comparison"]["task"]
+        conditions = sorted({pair["key"]["condition"] for pair in comparison["pairs"]})
+    except (KeyError, TypeError):
+        pass  # a malformed document is reported by the gate itself
+    else:
+        _require_known_conditions(task, conditions)
     document = gate.evaluate_gate(comparison, config, base_dir=compare_path.parent)
     directory = out if out is not None else Path("out/gate") / config.name
     adapters.write_report_file(directory / "gate.json", schema.canonical_json(document))
@@ -192,6 +212,7 @@ def _compare_document(
     baseline: Path, candidate: Path, config_path: Path, out: Path | None,
 ) -> tuple[dict[str, Any], Path]:
     config = schema.load_comparison_config(config_path)
+    _require_known_conditions(config.task, config.conditions)
     directory = out if out is not None else Path("out/compare") / config.name
     document = pairing.build_comparison(baseline, candidate, config, out_dir=directory)
     output = directory / "compare.json"
@@ -229,7 +250,7 @@ def _run_export(args: argparse.Namespace) -> int:
     config = exporter.load_comparison(args.comparison)
     try:
         adapter = get_task(config.task)
-    except KeyError as error:
+    except (KeyError, registry.TaskLoadError) as error:
         raise exporter.SetupError(str(error)) from error
     out = args.out if args.out is not None else exporter.default_out_dir(
         args.comparison, args.variant)
@@ -272,16 +293,17 @@ def _run_doctor(args: argparse.Namespace, adapter: TaskAdapter) -> int:
 
 def _demo_fixtures(adapter: TaskAdapter) -> FixtureSet:
     fixtures = adapter.fixtures()
+    missing = _FIXTURES_MISSING.format(name=adapter.name)
     scenario = fixtures.scenario
     required = [scenario / name for name in ("comparison.json", "gate.json")]
     directories = (fixtures.demo_clean, fixtures.demo_corrupt,
                    scenario / "baseline", scenario / "candidate")
     for directory in directories:
         if not directory.is_dir():
-            raise FileNotFoundError(_FIXTURES_MISSING)
+            raise FileNotFoundError(missing)
         episodes = [path for path in directory.iterdir() if path.is_dir()]
         if not episodes:
-            raise FileNotFoundError(_FIXTURES_MISSING)
+            raise FileNotFoundError(missing)
         required.extend(path / name for path in episodes
                         for name in ("manifest.json", "steps.jsonl"))
     for variant in ("baseline", "candidate"):
@@ -290,11 +312,11 @@ def _demo_fixtures(adapter: TaskAdapter) -> FixtureSet:
         try:
             manifest = schema.read_run_manifest(directory)
         except schema.TraceReadError as error:
-            raise FileNotFoundError(_FIXTURES_MISSING) from error
+            raise FileNotFoundError(missing) from error
         required.extend(directory / cell["episode_id"] / name for cell in manifest["episodes"]
                         for name in ("manifest.json", "steps.jsonl"))
     if not all(path.is_file() for path in required):
-        raise FileNotFoundError(_FIXTURES_MISSING)
+        raise FileNotFoundError(missing)
     return fixtures
 
 
@@ -329,6 +351,8 @@ def _run_demo(args: argparse.Namespace, adapter: TaskAdapter) -> int:
 
 def run_lab(args: argparse.Namespace) -> int:
     """Dispatch a lab command and translate input/usage/internal failures to exit codes."""
+    if args.lab_command == "tasks":
+        return run_tasks(args)
     if args.lab_command not in ("policies", "doctor", "run", "compare", "gate", "report", "demo"):
         sys.stderr.write(f"Unknown Policy Trace Lab command: {args.lab_command}\n")
         return _EXIT_USAGE_OR_INTERNAL
@@ -342,6 +366,9 @@ def run_lab(args: argparse.Namespace) -> int:
         except KeyError as error:
             sys.stderr.write(f"{error}\n")
             return _EXIT_USAGE_OR_INTERNAL
+        except registry.TaskLoadError as error:
+            sys.stderr.write(f"Cannot load task {args.task!r}: {error}\n")
+            return _EXIT_INVALID_INPUT
         if args.lab_command == "demo":
             return _run_demo(args, adapter)
         if args.lab_command == "doctor":

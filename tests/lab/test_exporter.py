@@ -10,7 +10,7 @@ from typing import Any
 from unittest.mock import patch
 
 from guided_streaming_policy.lab import adapters, doctor, exporter, schema
-from guided_streaming_policy.lab.tasks.base import TrialRecord, TrialRequest
+from guided_streaming_policy.lab.tasks.base import ConditionSpec, TrialRecord, TrialRequest
 from tests.lab.helpers import FakeTask, comparison_document, demo_episode
 
 __all__ = ["hook"]
@@ -66,7 +66,8 @@ class ExporterTests(unittest.TestCase):
 
     def test_matrix_order_is_preserved_without_extra_cells(self) -> None:
         self.document["matrix"] = {"conditions": ["c2", "c1"], "seeds": [7, 2]}
-        with patch.object(self.task, "conditions", return_value=("c1", "c2")):
+        specs = (ConditionSpec("c1", "first"), ConditionSpec("c2", "second"))
+        with patch.object(self.task, "conditions", return_value=specs):
             with patch.object(self.task, "run_trial", wraps=self.task.run_trial) as run:
                 out = self.export()
         expected = [("c2", 7), ("c2", 2), ("c1", 7), ("c1", 2)]

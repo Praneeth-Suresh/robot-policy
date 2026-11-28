@@ -1,0 +1,73 @@
+"""A cart on a one-dimensional rail: the whole simulator behind the `$name` task pack.
+
+The cart starts near the left end of the rail and must come to rest at GOAL_M. A
+virtual wall stands further along the rail. The constraint the lab checks is the
+distance between the cart and the wall, so a policy that overshoots the goal is a
+policy that gets too close to the wall. The wall is never part of the dynamics.
+
+A policy is one number, `gain`: the commanded target is
+`position + gain * (GOAL_M - position)`, tracked by a spring-damper.
+"""
+
+from __future__ import annotations
+
+import random
+from dataclasses import dataclass
+
+__all__ = [
+    "CONDITION_WALLS_M", "DT_SECONDS", "GOAL_M", "MAX_STEPS", "VERSION", "WALL_RADIUS_M",
+    "Rollout", "Step", "simulate", "start_position",
+]
+
+VERSION = "1.0"
+DT_SECONDS = 0.05  # control and integration period
+GOAL_M = 0.4
+GOAL_TOLERANCE_M = 0.02
+REST_SPEED_MPS = 0.1
+MAX_STEPS = 200
+SPRING_GAIN_PER_S2 = 40.0
+DAMPING_GAIN_PER_S = 12.0
+START_RANGE_M = (0.0, 0.2)
+WALL_RADIUS_M = 0.05
+CONDITION_WALLS_M = {"nominal": 0.55, "close_wall": 0.48}
+
+
+@dataclass(frozen=True)
+class Step:
+    """The state before an action, the action, and the reward it earned."""
+
+    position_m: float
+    speed_mps: float
+    target_m: float
+    reward: float
+
+
+@dataclass(frozen=True)
+class Rollout:
+    """One simulated trial: its start position, every step, and whether it reached the goal."""
+
+    start_m: float
+    steps: tuple[Step, ...]
+    reached_goal: bool
+
+
+def start_position(seed: int) -> float:
+    """Return the reset position for a seed; the same seed always gives the same start."""
+    return round(random.Random(seed).uniform(*START_RANGE_M), 6)
+
+
+def simulate(gain: float, seed: int) -> Rollout:
+    """Run one trial until the cart rests at the goal or MAX_STEPS elapse."""
+    position, speed = start_position(seed), 0.0
+    start, steps = position, []
+    for _ in range(MAX_STEPS):
+        target = position + gain * (GOAL_M - position)
+        before = (position, speed)
+        acceleration = SPRING_GAIN_PER_S2 * (target - position) - DAMPING_GAIN_PER_S * speed
+        speed += acceleration * DT_SECONDS
+        position += speed * DT_SECONDS
+        steps.append(Step(round(before[0], 6), round(before[1], 6), round(target, 6),
+                          round(-abs(GOAL_M - position), 6)))
+        if abs(GOAL_M - position) <= GOAL_TOLERANCE_M and abs(speed) <= REST_SPEED_MPS:
+            return Rollout(start, tuple(steps), True)
+    return Rollout(start, tuple(steps), False)

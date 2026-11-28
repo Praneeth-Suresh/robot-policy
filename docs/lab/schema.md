@@ -47,7 +47,7 @@ run/
 | `condition` | R | The matrix cell's condition |
 | `seed` | R | The matrix cell's seed |
 | `reset_state_fingerprint` | R | Hash of the actual reset state, or `null` when the simulator exposes none |
-| `policy` (`name`, `checkpoint_id`, `checkpoint_sha256`) | R | Policy identity. `checkpoint_sha256` is the sha256 of the sorted `{path: sha256}` map of the policy's checkpoint files from `lab/pins.json` |
+| `policy` (`name`, `checkpoint_id`, `checkpoint_sha256`) | R | Policy identity. `checkpoint_sha256` is the sha256 of the sorted `{path: sha256}` map of the policy's checkpoint files from `guided_streaming_policy/lab/tasks/pusht/pins.json` |
 | `resolved_config` (`path`, `sha256`) | R | Path (relative to the run directory) and sha256 of the compact sorted-key JSON of the fully resolved configuration |
 | `simulator` (`name`, `version`) | R | Simulator identity |
 | `outcome` | R | `native_success`, `terminated`, `truncated`, `reason`, `length`; optional `native` (the runner's own metrics, verbatim) and `detail` (error text of a crashed trial) |

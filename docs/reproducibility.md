@@ -1,5 +1,7 @@
 # Reproducibility and Compatibility
 
+This page is the preservation policy for the research code (Push-T and Robomimic scripts). Pinned versions, seeds and how to regenerate the committed Policy Trace Lab artifacts are in [lab reproducibility](lab/reproducibility.md).
+
 This repository preserves the benchmark behavior used to generate existing
 Push-T results. Packaging, documentation, and safety improvements are intended
 to make the code easier to install and inspect, without silently changing the

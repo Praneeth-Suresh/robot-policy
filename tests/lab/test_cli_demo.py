@@ -91,11 +91,11 @@ class DemoCLITests(unittest.TestCase):
             self.assertIn(text, " ".join(output.split()))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            fixture = FixtureSet(root / "clean", root / "corrupt", root / "scenario")
+            fixture = FixtureSet(root / "clean", root / "corrupt", root / "scenario", root)
             with patch.object(PushTTask, "fixtures", return_value=fixture):
                 code, _, error = _invoke(["--out", str(root / "out")])
             self.assertEqual(code, 2)
-            self.assertIn("fixtures not found; run from a source checkout of the repository", error)
+            self.assertIn("fixtures not found for task 'pusht'", error)
             self.assertFalse((root / "out").exists())
 
     def test_partial_fixture_files_are_reported_before_output_is_created(self) -> None:
@@ -106,7 +106,7 @@ class DemoCLITests(unittest.TestCase):
         for name in missing:
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                fixture = FixtureSet(root / "clean", root / "corrupt", root / "scenario")
+                fixture = FixtureSet(root / "clean", root / "corrupt", root / "scenario", root)
                 for original, copied in ((source.demo_clean, fixture.demo_clean),
                                          (source.demo_corrupt, fixture.demo_corrupt),
                                          (source.scenario, fixture.scenario)):
@@ -121,7 +121,7 @@ class DemoCLITests(unittest.TestCase):
                 with patch.object(PushTTask, "fixtures", return_value=fixture):
                     code, _, error = _invoke(["--out", str(root / "out")])
                 self.assertEqual(code, 2)
-                self.assertIn("fixtures not found; run from a source checkout of the repository",
+                self.assertIn("fixtures not found for task 'pusht'",
                               error)
                 self.assertFalse((root / "out").exists())
 

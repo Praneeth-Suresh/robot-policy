@@ -157,9 +157,10 @@ class RunnerHookTests(unittest.TestCase):
                 self.assertIs(self.module.env, self.original)
                 self.assertEqual(Path.cwd(), cwd)
 
-    def test_adapter_delegates_and_only_supports_static_condition(self) -> None:
+    def test_adapter_delegates_and_only_runs_the_static_condition(self) -> None:
         task = PushTTask(_ROOT)
-        self.assertEqual(task.conditions(), ("static",))
+        self.assertEqual([(c.name, c.runnable) for c in task.conditions()],
+                         [("static", True), ("dynamic", False)])
         with patch.object(runner, "run_pusht_trial") as run:
             self.assertIs(task.run_trial(self.request), run.return_value)
         run.assert_called_once_with(self.request, _ROOT)

@@ -1,0 +1,12 @@
+{
+  "schema_version": "0.1",
+  "name": "${name}_comparison",
+  "task": "$name",
+  "simulator_version": "1.0",
+  "matrix": {"conditions": ["nominal"], "seeds": [0, 1, 2, 3]},
+  "variants": {
+    "baseline": {"policy": "$name/steady"},
+    "candidate": {"policy": "$name/eager"}
+  },
+  "intended_differences": ["policy"]
+}

@@ -1,0 +1,17 @@
+"""Contract tests for the `$name` task pack, built on the Policy Trace Lab conformance kit."""
+
+import unittest
+
+from guided_streaming_policy.lab import testing
+from $module.adapter import ${Class}Task
+
+
+class ${Class}ContractTests(testing.TaskContractTests):
+    """Every conformance check runs as a sub-test; the simulator is pure Python."""
+
+    def make_adapter(self) -> ${Class}Task:
+        return ${Class}Task()
+
+
+if __name__ == "__main__":
+    unittest.main()

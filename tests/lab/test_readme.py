@@ -17,7 +17,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 _README = _ROOT / "README.md"
 _COMMAND_TIMEOUT_SECONDS = 60
 _FENCES = re.compile(r"^```([^\n]*)\n(.*?)^```[ \t]*$", re.MULTILINE | re.DOTALL)
-_COMMAND_HEADING = re.compile(r"^### `gsp lab ([\w-]+)`$", re.MULTILINE)
+_COMMAND_HEADING = re.compile(r"^### `gsp lab ([\w -]+)`$", re.MULTILINE)
 _OPTION_TABLE = re.compile(
     r"^\| (?:Arguments and options|Argument or option|Option) \|[^\n]*\n"
     r"\|[- |:]+\|\n((?:\|[^\n]*\n)+)",
@@ -31,6 +31,18 @@ def _subcommands(parser: argparse.ArgumentParser) -> dict[str, argparse.Argument
         for action in parser._actions
         if isinstance(action, argparse._SubParsersAction)
     )
+
+
+def _leaf_commands(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:
+    """`gsp lab` commands by name, with a command group expanded into "group leaf" names."""
+    leaves: dict[str, argparse.ArgumentParser] = {}
+    for name, command in _subcommands(parser).items():
+        groups = [a for a in command._actions if isinstance(a, argparse._SubParsersAction)]
+        if groups:
+            leaves.update({f"{name} {leaf}": item for leaf, item in groups[0].choices.items()})
+        else:
+            leaves[name] = command
+    return leaves
 
 
 def _section(text: str, heading: str) -> str:
@@ -72,7 +84,7 @@ class ReadmeTests(unittest.TestCase):
     def test_command_list_matches_parser_and_chooser(self) -> None:
         text = _README.read_text(encoding="utf-8")
         documented = _COMMAND_HEADING.findall(_section(text, "Command reference"))
-        commands = _subcommands(_subcommands(build_parser())["lab"])
+        commands = _leaf_commands(_subcommands(build_parser())["lab"])
         self.assertEqual(set(documented), set(commands))
         self.assertEqual(documented, list(commands))
         chooser = _section(text, "Which command do I run?")
@@ -111,6 +123,15 @@ class ReadmeTests(unittest.TestCase):
             self.assertIn(full_tokens[1], ("runnable", "unavailable"))
             self.assertEqual(shown_tokens[2], "ckpt")
             self.assertEqual(full_tokens[2 : len(shown_tokens)], shown_tokens[2:])
+
+    def _assert_pusht_rows(self, expected: str, actual: str) -> None:
+        """Other packs may be installed; compare the header and the built-in pack's row."""
+        def wanted(text: str) -> list[list[str]]:
+            return [line.split() for line in _normalized_output(text).splitlines()
+                    if line.startswith(("NAME", "pusht"))]
+
+        self.assertEqual(wanted(actual), wanted(expected))
+        self.assertEqual(len(wanted(expected)), 2)
 
     def test_offline_examples_in_readme_order(self) -> None:
         text = _README.read_text(encoding="utf-8")
@@ -152,12 +173,14 @@ class ReadmeTests(unittest.TestCase):
         expected = following[0][2]
         if words[1:3] == ["lab", "policies"]:
             self._assert_policy_table(expected, stdout)
+        elif words[1:4] == ["lab", "tasks", "list"]:
+            self._assert_pusht_rows(expected, stdout)
         else:
             self.assertEqual(_normalized_output(stdout), _normalized_output(expected))
 
     def test_help_arguments_and_exit_codes_match_readme(self) -> None:
         sections = _command_sections(_README.read_text(encoding="utf-8"))
-        commands = _subcommands(_subcommands(build_parser())["lab"])
+        commands = _leaf_commands(_subcommands(build_parser())["lab"])
         for name, parser in commands.items():
             with self.subTest(command=name):
                 section = sections[name]
@@ -170,8 +193,9 @@ class ReadmeTests(unittest.TestCase):
                     for name in row.split("|")[1].strip().split(", ")
                 }
                 self.assertEqual(documented, _argument_names(parser))
+                command = [sys.executable, "-m", "guided_streaming_policy", "lab"]
                 result = subprocess.run(
-                    [sys.executable, "-m", "guided_streaming_policy", "lab", name, "--help"],
+                    [*command, *name.split(), "--help"],
                     cwd=_ROOT,
                     capture_output=True,
                     text=True,

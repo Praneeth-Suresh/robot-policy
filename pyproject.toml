@@ -76,6 +76,9 @@ dev = [
 [project.scripts]
 gsp = "guided_streaming_policy.cli:main"
 
+[project.entry-points."gsp_lab.tasks"]
+pusht = "guided_streaming_policy.lab.tasks.pusht.adapter:PushTTask"
+
 [tool.setuptools.packages.find]
 include = ["guided_streaming_policy*"]
 
@@ -108,4 +111,5 @@ paths = ["guided_streaming_policy/lab"]
 min_confidence = 80
 
 [tool.setuptools.package-data]
-"guided_streaming_policy.lab" = ["assets/*.css", "assets/*.js", "assets/*.svg"]
+"guided_streaming_policy.lab" = ["assets/*.css", "assets/*.js", "assets/*.svg", "scaffold/*.tmpl"]
+"guided_streaming_policy.lab.tasks.pusht" = ["pins.json", "fixtures/**/*.json", "fixtures/**/*.jsonl"]

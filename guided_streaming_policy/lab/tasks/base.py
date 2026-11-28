@@ -9,9 +9,24 @@ from typing import Any, Iterator, Protocol
 from guided_streaming_policy.lab.schema import Episode
 
 __all__ = [
-    "TunableSpec", "PolicySpec", "PolicyStatus", "ProbeResult", "TaskAdapter",
-    "TrialRequest", "TrialRecord", "TrialCrashed", "FixtureSet",
+    "CONTRACT_VERSION", "ConditionSpec", "TunableSpec", "PolicySpec", "PolicyStatus",
+    "ProbeResult", "TaskAdapter", "TrialRequest", "TrialRecord", "TrialCrashed", "FixtureSet",
 ]
+
+CONTRACT_VERSION = 1
+
+
+@dataclass(frozen=True)
+class ConditionSpec:
+    """Name one scenario (condition) of a task pack and say what it is.
+
+    A condition that is declared but has no run hook yet sets runnable to False;
+    `gsp lab run` then refuses it with the description as the reason.
+    """
+
+    name: str
+    description: str
+    runnable: bool = True
 
 
 @dataclass(frozen=True)
@@ -58,25 +73,35 @@ class ProbeResult:
 class FixtureSet:
     """Synthetic inputs for the offline demo and CI.
 
-    scenario holds baseline/, candidate/, comparison.json and gate.json.
+    scenario holds baseline/, candidate/, comparison.json and gate.json. root holds
+    cases.json, which declares the expected result of each of the ten fixture cases
+    (see guided_streaming_policy.lab.testing).
     """
 
     demo_clean: Path
     demo_corrupt: Path
     scenario: Path
+    root: Path
 
 
 class TaskAdapter(Protocol):
-    """Expose task metadata and reproducibility inputs without running a policy."""
+    """Expose task metadata and reproducibility inputs without running a policy.
+
+    A task pack is one simulator, its task definition, its conditions and its
+    reference policies. `probe()` and `policies()` run when packs are listed, so
+    they must not import the simulator, torch or numpy; check for them with
+    `importlib.util.find_spec` instead.
+    """
 
     name: str
+    contract_version: int
 
     def fixtures(self) -> FixtureSet:
         """Return the synthetic fixture set used by the offline demo and CI."""
         ...
 
-    def conditions(self) -> tuple[str, ...]:
-        """Return supported simulation conditions."""
+    def conditions(self) -> tuple[ConditionSpec, ...]:
+        """Return the named conditions (scenarios) this pack supports."""
         ...
 
     def run_trial(self, request: TrialRequest) -> TrialRecord:
@@ -87,7 +112,7 @@ class TaskAdapter(Protocol):
         ...
 
     def policies(self) -> tuple[PolicySpec, ...]:
-        """Return this task's reference policy specifications."""
+        """Return this task's reference policy specifications without importing runners."""
         ...
 
     def policy_statuses(self) -> tuple[PolicyStatus, ...]:
@@ -95,7 +120,7 @@ class TaskAdapter(Protocol):
         ...
 
     def probe(self) -> ProbeResult:
-        """Inspect simulator version, assets and dependencies without loading them."""
+        """Inspect simulator version, assets and dependencies without importing them."""
         ...
 
     def observation_schema(self) -> dict[str, Any]:

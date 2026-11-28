@@ -15,13 +15,31 @@ __all__ = [
     "load_pins",
     "find_policy",
     "format_policy_rows",
-    "read_traces", "is_trace_dir", "path_checksum", "write_report_file", "copy_tree_once",
+    "validate_conditions", "read_traces", "is_trace_dir", "path_checksum",
+    "write_report_file", "copy_tree_once",
 ]
 
 _HASH_PREFIX_HEX_DIGITS = 12
 _NAME_COLUMN_CHARACTERS = 16
 _STATUS_COLUMN_CHARACTERS = 13
 _PIN_COLUMN_CHARACTERS = 36
+
+
+def validate_conditions(
+    adapter: TaskAdapter, conditions: Sequence[str], *, require_runnable: bool = False,
+) -> None:
+    """Raise ValueError naming the supported conditions when one is unknown.
+
+    With require_runnable, a condition that is declared but has no run hook is
+    refused with its description as the reason.
+    """
+    specs = {spec.name: spec for spec in adapter.conditions()}
+    for name in conditions:
+        if name not in specs:
+            raise ValueError(f"Unknown condition {name!r}; supported: {', '.join(specs)}")
+        if require_runnable and not specs[name].runnable:
+            raise ValueError(f"Condition {name!r} cannot run through gsp lab run: "
+                             f"{specs[name].description}")
 
 
 def read_traces(path: Path) -> Iterator[schema.Episode]:

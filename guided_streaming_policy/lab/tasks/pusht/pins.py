@@ -1,7 +1,7 @@
 """Compute simulator, checkpoint-byte and resolved-default configuration pins.
 
 Regenerate from the repository root with this one-line command:
-.venv/bin/python -c "from pathlib import Path; from guided_streaming_policy.lab.schema import canonical_json; from guided_streaming_policy.lab.tasks.pusht.pins import pin_file_document; Path('lab/pins.json').write_text(canonical_json(pin_file_document(Path.cwd())), encoding='utf-8')"
+.venv/bin/python -c "from pathlib import Path; from guided_streaming_policy.lab.schema import canonical_json; from guided_streaming_policy.lab.tasks.pusht.pins import pin_file_document; Path('guided_streaming_policy/lab/tasks/pusht/pins.json').write_text(canonical_json(pin_file_document(Path.cwd())), encoding='utf-8')"
 
 The task section contains simulator {name, version} and policies keyed by name;
 each policy holds checkpoints {repo-relative path: SHA-256 or null} and config_sha256.

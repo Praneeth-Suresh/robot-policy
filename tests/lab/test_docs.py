@@ -264,3 +264,9 @@ class DocumentationTests(unittest.TestCase):
                         ),
                         f"docs/lab/{name}: missing heading {title!r}",
                     )
+
+    def test_the_two_reproducibility_pages_link_to_each_other(self) -> None:
+        research = _LAB_DOCS.parent / "reproducibility.md"
+        lab = _LAB_DOCS / "reproducibility.md"
+        self.assertIn("(lab/reproducibility.md)", research.read_text(encoding="utf-8"))
+        self.assertIn("(../reproducibility.md)", lab.read_text(encoding="utf-8"))

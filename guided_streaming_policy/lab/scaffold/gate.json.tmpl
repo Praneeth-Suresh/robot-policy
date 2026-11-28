@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.1",
+  "name": "${name}_gate",
+  "min_completed_pairs": 4,
+  "max_missing_pairs": 0,
+  "max_incompatible_pairs": 0,
+  "rules": [
+    {"id": "success_not_worse", "metric": "native_success_rate",
+     "compare": "candidate_minus_baseline", "units": "fraction of completed pairs",
+     "threshold": -0.1, "required": true},
+    {"id": "separation_proxy", "metric": "obstacle_separation_min", "signal": "obs.x",
+     "units": "m", "threshold": 0.1, "tolerance": 0.0, "min_coverage": 0.95,
+     "required": true}
+  ]
+}

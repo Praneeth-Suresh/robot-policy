@@ -19,7 +19,7 @@ silently changing data handling, model interfaces, or evaluation conditions.
 | `Push-T/` | Push-T training and inference baselines | `gsp run ...` |
 | `Robomimic/` | Low-dimensional robomimic training and inference baselines | `gsp run mimic-...` |
 | `tests/` | Focused unit and smoke tests for reusable behavior | `python -m unittest discover -v` |
-| `docs/`, `README.md`, `curriculum.md` | Setup, experiment, and learning documentation | Markdown |
+| `docs/`, `README.md` | Setup, experiment, and learning documentation | Markdown |
 
 ## Primary Workflows
 

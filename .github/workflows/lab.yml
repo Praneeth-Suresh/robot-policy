@@ -27,3 +27,46 @@ jobs:
           set -e
           test "$demo_code" -eq 1
           python -c "import json; from pathlib import Path; gate = json.loads(Path('out/demo/gate/gate.json').read_text()); assert gate['verdict'] == 'REGRESSION'; assert gate['exit_code'] == 1; assert any(rule['id'] == 'separation_proxy' and rule['verdict'] == 'fail' for rule in gate['rules']); assert 'Synthetic fixture data. Not a benchmark.' in Path('out/demo/report/report.html').read_text()"
+
+  plugin-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install the lab into a clean environment
+        run: |
+          python -m venv "$RUNNER_TEMP/plugin-venv"
+          "$RUNNER_TEMP/plugin-venv/bin/python" -m pip install .
+      - name: Add a simulator from outside the checkout
+        shell: bash
+        run: |
+          set -eu
+          export PATH="$RUNNER_TEMP/plugin-venv/bin:$PATH"
+          mkdir "$RUNNER_TEMP/plugin-work"
+          cd "$RUNNER_TEMP/plugin-work"
+          gsp lab tasks list | grep -E '^pusht +guided-streaming-policy .* ready '
+          set +e; gsp lab demo --out out/demo; code=$?; set -e
+          test "$code" -eq 1
+          gsp lab tasks new rail --out rail-pack
+          pip install ./rail-pack
+          gsp lab tasks list | grep -E '^rail +gsp-lab-rail .* ready '
+          gsp lab tasks check rail
+          set +e; gsp lab demo --task rail --out out/rail-demo; code=$?; set -e
+          test "$code" -eq 1
+      - name: A broken pack is listed and breaks nothing else
+        shell: bash
+        run: |
+          set -eu
+          export PATH="$RUNNER_TEMP/plugin-venv/bin:$PATH"
+          cd "$RUNNER_TEMP/plugin-work"
+          gsp lab tasks new broken --out broken-pack
+          printf 'raise ImportError("no simulator")\n' >> broken-pack/broken/adapter.py
+          pip install ./broken-pack
+          gsp lab tasks list | grep -E '^broken .* broken: ImportError'
+          set +e; gsp lab demo --out out/demo-after-broken; code=$?; set -e
+          test "$code" -eq 1
+      - name: The lab itself did not change
+        shell: bash
+        run: test -z "$(git status --porcelain -- guided_streaming_policy/lab)"

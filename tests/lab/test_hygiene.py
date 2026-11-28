@@ -1,11 +1,11 @@
 """Source hygiene, bounded functions, exercised artifacts and the offline CI contract."""
 
 import ast
-import fnmatch
 import re
 import shutil
 import subprocess
 import unittest
+from collections.abc import Iterable
 from pathlib import Path
 
 from guided_streaming_policy.lab import schema
@@ -18,8 +18,17 @@ MAX_FUNCTION_LINES = 50
 MAX_COMPLEXITY = 10
 MARKERS = re.compile(r"TO" r"DO|FIX" r"ME|XX" r"X")
 TRACKED_TASK = re.compile(r"TO" r"DO\(T\d+\)")
-SCRATCH_PATTERNS = ("*.orig", "*.bak", "*.rej", "*~", "*.ipynb", "scratch*", "tmp*")
+ROOT_ALLOWED_FILES = frozenset({
+    "README.md", "LICENSE", "NOTICE", "AGENTS.md", "CLAUDE.md", "pyproject.toml", "uv.lock",
+    "environment.yml", ".gitignore",
+})
 FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
+
+
+def unexpected_root_files(tracked: Iterable[str]) -> list[str]:
+    """Return tracked files at the repository root that are not in the allow-list."""
+    return sorted(name for name in tracked if name and "/" not in name
+                  and name not in ROOT_ALLOWED_FILES)
 
 
 def complexity(function: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
@@ -241,17 +250,17 @@ class HygieneTests(unittest.TestCase):
         self.assertEqual(failures, [], "Untracked work markers:\n" + "\n".join(failures))
 
     @unittest.skipUnless(shutil.which("git"), "git unavailable; cannot inspect tracked files")
-    def test_no_tracked_scratch_files(self) -> None:
+    def test_tracked_root_files_are_allow_listed(self) -> None:
         result = subprocess.run(
             ["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True, check=True
         )
-        failures = [
-            name
-            for name in result.stdout.split("\0")
-            if name
-            and any(fnmatch.fnmatch(Path(name).name, pattern) for pattern in SCRATCH_PATTERNS)
-        ]
-        self.assertEqual(failures, [], "Tracked scratch files: " + ", ".join(failures))
+        failures = unexpected_root_files(result.stdout.split("\0"))
+        message = "Tracked root files not in the allow-list: " + ", ".join(failures)
+        self.assertEqual(failures, [], message)
+
+    def test_root_allow_list_flags_a_planted_scratch_page(self) -> None:
+        tracked = [*sorted(ROOT_ALLOWED_FILES), "docs/lab/schema.md", "p.html"]
+        self.assertEqual(unexpected_root_files(tracked), ["p.html"])
 
     def test_schema_directory_has_no_extra_files(self) -> None:
         actual = {
@@ -325,6 +334,15 @@ class HygieneTests(unittest.TestCase):
             "separation_proxy",
             "out/demo/report/report.html",
             "Synthetic fixture data. Not a benchmark.",
+            "plugin-smoke:",
+            '"$RUNNER_TEMP/plugin-venv/bin/python" -m pip install .',
+            "gsp lab tasks new rail --out rail-pack",
+            "pip install ./rail-pack",
+            "gsp lab tasks check rail",
+            "gsp lab demo --task rail --out out/rail-demo",
+            "gsp lab tasks list | grep",
+            "broken: ImportError",
+            "git status --porcelain -- guided_streaming_policy/lab",
         )
         for command in commands:
             with self.subTest(command=command):

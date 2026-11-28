@@ -9,9 +9,9 @@
 
 **Validate robot data. Compare policies. Replay regressions.**
 
-Policy Trace Lab is an open-source workbench that checks demonstration data, compares two robot policies under identical simulation conditions against a release rule you declare in advance, and opens the first regression at the timestep that caused it. It works on Push-T today and is built to take more tasks (Robomimic next) without changing its core.
+Policy Trace Lab is an open-source workbench that checks demonstration data, compares two robot policies under identical simulation conditions against a release rule you declare in advance, and opens the first regression at the timestep that caused it. It works on Push-T today. A new simulator is added by installing a task pack, with no change to its core (Robomimic is next).
 
-[Quickstart](#quickstart) · [See it work](#see-it-work-a-real-push-t-run) · [Which command do I run?](#which-command-do-i-run) · [Command reference](#command-reference) · [Guided workflows](#guided-workflows) · [Reference policies](#play-with-the-reference-policies) · [Configuration](#configuration-reference) · [Exit codes](#exit-codes) · [Troubleshooting](#troubleshooting)
+[Quickstart](#quickstart) · [See it work](#see-it-work-a-real-push-t-run) · [Which command do I run?](#which-command-do-i-run) · [Command reference](#command-reference) · [Guided workflows](#guided-workflows) · [Reference policies](#play-with-the-reference-policies) · [Plug in a simulator](#plug-in-a-simulator) · [Configuration](#configuration-reference) · [Exit codes](#exit-codes) · [Troubleshooting](#troubleshooting)
 
 ## Quickstart
 
@@ -82,6 +82,9 @@ Every capability reads or writes the same versioned **episode trace**, so data c
 | Separation proxy | Distance between where the policy told the agent to go and the obstacle centre. It is a proxy, not contact. |
 | Reference policy | A method this repository implements, registered by name and pinned by checkpoint and configuration hash. |
 | Synthetic | Fixture data made for tests and the demo. It is never a benchmark. |
+| Simulator | The program that steps a task and produces observations, for example the Push-T physics. The lab supports one simulator per task pack. |
+| Task pack | One simulator, its task definition, its named conditions and its reference policies, behind the `TaskAdapter` contract. A pack is a pip package that registers itself under the `gsp_lab.tasks` entry point. Push-T ships built in; others are plugins. |
+| Condition | A named scenario of a task pack, for example Push-T's `static`. A comparison config lists the conditions it runs, and the pack must declare each one. |
 
 ## See it work: a real Push-T run
 
@@ -207,6 +210,9 @@ exit code: 1
 | Check that the two runs are a fair pair, and see coverage | `gsp lab compare <baseline run> <candidate run> --comparison <config>` |
 | Get a pass or fail against my declared rule, for a script or CI | `gsp lab gate <compare.json> --gate <config>` |
 | Find out where a regression started | `gsp lab report <compare.json> --gate <gate.json>` |
+| See which simulators are installed | `gsp lab tasks list` |
+| Add my own simulator | `gsp lab tasks new <name> --out <dir>`, then `pip install <dir>` |
+| Check that a simulator pack follows the contract | `gsp lab tasks check <name>` |
 | Use the research scripts without the lab | `gsp run <task>` or `Push-T/run_trial.py` (see [Research workspace](#research-workspace)) |
 
 ## Command reference
@@ -260,7 +266,7 @@ Checks: `schema.missing_required`, `shape.mismatch`, `value.non_finite`, `time.n
 - **Example:**
 
 ```bash offline exit=1
-gsp lab doctor tests/fixtures/lab/pusht/demos/corrupt --out out/doctor-corrupt
+gsp lab doctor guided_streaming_policy/lab/tasks/pusht/fixtures/demos/corrupt --out out/doctor-corrupt
 ```
 
 - **Example output:**
@@ -316,7 +322,7 @@ Pair statuses: `completed` (both episodes exist, reset fingerprints match, only 
 - **Example:**
 
 ```bash offline exit=0
-gsp lab compare tests/fixtures/lab/pusht/scenarios/seeded_regression/baseline tests/fixtures/lab/pusht/scenarios/seeded_regression/candidate --comparison tests/fixtures/lab/pusht/scenarios/seeded_regression/comparison.json --out out/compare-demo
+gsp lab compare guided_streaming_policy/lab/tasks/pusht/fixtures/scenarios/seeded_regression/baseline guided_streaming_policy/lab/tasks/pusht/fixtures/scenarios/seeded_regression/candidate --comparison guided_streaming_policy/lab/tasks/pusht/fixtures/scenarios/seeded_regression/comparison.json --out out/compare-demo
 ```
 
 - **Example output:**
@@ -349,7 +355,7 @@ The gate re-checks the trace file hashes recorded in `compare.json` and refuses 
 - **Example:**
 
 ```bash offline exit=1
-gsp lab gate out/compare-demo/compare.json --gate tests/fixtures/lab/pusht/scenarios/seeded_regression/gate.json --out out/gate-demo
+gsp lab gate out/compare-demo/compare.json --gate guided_streaming_policy/lab/tasks/pusht/fixtures/scenarios/seeded_regression/gate.json --out out/gate-demo
 ```
 
 - **Example output:**
@@ -409,6 +415,104 @@ report.html: out/report-demo/report.html
 - **Exit codes:** same as the gate: 0 pass; 1 regression (the bundled fixture exits 1); 2 invalid or incomplete; 3 usage or internal error.
 - **Next step:** open `out/demo/report/report.html`.
 
+### `gsp lab tasks list`
+
+- **What it does:** lists every installed task pack with its distribution and version, contract version, status, number of reference policies and conditions.
+- **When to use it:** after installing a pack, or to see what `--task` accepts. A pack that cannot be loaded is shown as `broken: <reason>` and does not affect any other command.
+- **Usage:** `gsp lab tasks list [--verbose]`
+
+| Argument or option | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `--verbose` | optional | off | Also list each condition with its description |
+
+Status: `ready` means the pack loads, its contract version matches the lab, and it ships its pin file and fixture declarations. `missing assets: ...` names what is absent, and `broken: ...` gives the load error. Whether a policy can run (simulator packages, checkpoints) is per policy: see `gsp lab policies`.
+
+- **Example:**
+
+```bash offline exit=0
+gsp lab tasks list
+```
+
+- **Example output:**
+
+```text
+NAME   DISTRIBUTION                   CONTRACT  STATUS  POLICIES  CONDITIONS
+pusht  guided-streaming-policy 0.1.0  1         ready   5         static, dynamic
+```
+
+- **Exit codes:** 0 listed; 3 usage error.
+- **Next step:** `gsp lab tasks check <name>`, or `gsp lab policies --task <name>`.
+
+### `gsp lab tasks new`
+
+- **What it does:** writes a standalone, pip-installable task pack for a small one-dimensional rail simulator that really runs, with packaged fixtures for all ten fixture cases, a comparison config, a gate config, a contract test and a README.
+- **When to use it:** to start a new simulator from a working example. See [Plug in a simulator](#plug-in-a-simulator).
+- **Usage:** `gsp lab tasks new --out OUT name`
+
+| Argument or option | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `name` | required | none | Task name: lowercase letters, digits, `-` or `_`; it must not be installed already |
+| `--out` | required | none | Output directory; must be empty or absent |
+
+- **Example:**
+
+```bash offline exit=0
+gsp lab tasks new rail --out out/rail-pack
+```
+
+- **Example output:**
+
+```text
+task pack rail: out/rail-pack
+next: cd out/rail-pack && pip install . && gsp lab tasks check rail
+```
+
+- **Exit codes:** 0 written; 2 refused (name taken or invalid, or output directory not empty); 3 usage or internal error.
+- **Next step:** `pip install` the new directory, then `gsp lab tasks check <name>`.
+
+### `gsp lab tasks check`
+
+- **What it does:** runs the conformance suite on one installed pack and prints pass, fail or skip, with a reason, for each check: contract version, conditions, no heavy imports, pins, a recorded sample against the schemas, the ten fixture cases, a same-seed reset fingerprint and the offline demo.
+- **When to use it:** after `gsp lab tasks new`, after every change to a pack, and in the pack's own CI.
+- **Usage:** `gsp lab tasks check name`
+- **Needs an installed pack.** The example uses the pack written by `gsp lab tasks new rail` and installed with pip, so it is not run offline by the README test.
+
+| Argument or option | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `name` | required | none | Task name, as shown by `gsp lab tasks list` |
+
+- **Example:**
+
+```bash
+gsp lab tasks check rail
+```
+
+- **Example output:**
+
+```text
+pass contract_version: version 1
+pass conditions: nominal, close_wall
+pass no_heavy_imports: importing and probing load nothing heavy
+pass policy_pins: 3 policies pinned, each with a paper
+pass schemas_sample: 4 recorded episodes validate
+pass fixture:clean: Doctor exit 0
+pass fixture:no_split: Doctor exit 0
+pass fixture:corrupt: Doctor exit 1
+pass fixture:leakage: Doctor exit 1
+pass fixture:seeded_regression: compare exit 0, gate exit 1
+pass fixture:two_valid_trajectories: compare exit 0, gate exit 0
+pass fixture:missing_signal: compare exit 0, gate exit 2
+pass fixture:mismatched_reset: compare exit 0, gate exit 2
+pass fixture:truncated: compare exit 0, gate exit 1
+pass fixture:missing_pairs: compare exit 0, gate exit 2
+pass reset_fingerprint: stable for rail/steady, seed 0
+pass offline_demo: gsp lab demo exits 1 as declared
+17 passed, 0 failed, 0 skipped
+```
+
+- **Exit codes:** 0 all checks pass; 1 a check failed; 2 the pack cannot be loaded; 3 usage error.
+- **Next step:** `gsp lab demo --task <name> --out <dir>`.
+
 ## Guided workflows
 
 ### Journey A: first-time visitor, five minutes, offline
@@ -439,7 +543,7 @@ The repository's workflow `.github/workflows/lab.yml` does steps 1 and 2.
 
 ## Play with the reference policies
 
-Every Push-T method in this repository is registered as a reference policy: a thin adapter around the unchanged runner, with its checkpoint hash and resolved configuration hash pinned in `lab/pins.json`. No policy is the default. Any of them can be the baseline or the candidate. A test fails if a pin changes; changing a pin is a deliberate, reviewed edit. List them with `gsp lab policies`.
+Every Push-T method in this repository is registered as a reference policy: a thin adapter around the unchanged runner, with its checkpoint hash and resolved configuration hash pinned in `guided_streaming_policy/lab/tasks/pusht/pins.json`. No policy is the default. Any of them can be the baseline or the candidate. A test fails if a pin changes; changing a pin is a deliberate, reviewed edit. List them with `gsp lab policies`.
 
 | Policy | What it is | Tunable settings (default) | Paper |
 | --- | --- | --- | --- |
@@ -485,6 +589,39 @@ gsp lab run --comparison lab/comparisons/pusht_guidance_v1.json --variant candid
 ```
 
 The report states what the declared rule found for those runs. It makes no claim about which method is better in general.
+
+## Plug in a simulator
+
+A **task pack** is one simulator, its task definition, its named conditions and its reference policies. You add one by installing a package, with no edit to the lab. `gsp lab tasks new` writes a complete working pack, a cart on a one-dimensional rail, that you can replace piece by piece. Run these from any directory, in an environment where this repository is installed:
+
+```bash
+gsp lab tasks new rail --out rail-pack
+pip install ./rail-pack
+gsp lab tasks list
+gsp lab tasks check rail
+gsp lab demo --task rail --out out/rail-demo
+```
+
+`tasks list` shows both packs, `check` runs the conformance suite and `demo` runs the offline pipeline on the pack's own fixtures:
+
+```text
+NAME   DISTRIBUTION                   CONTRACT  STATUS  POLICIES  CONDITIONS
+pusht  guided-streaming-policy 0.1.0  1         ready   5         static, dynamic
+rail   gsp-lab-rail 0.1.0             1         ready   3         nominal, close_wall
+```
+
+Then compare two of its policies with the pack's own configs. The gate exits 1: `rail/eager` reaches the goal, so its native success holds, but it comes closer to the wall than the 0.1 m threshold.
+
+```bash
+cd rail-pack
+gsp lab run --comparison configs/comparison.json --variant baseline --out out/runs/baseline
+gsp lab run --comparison configs/comparison.json --variant candidate --out out/runs/candidate
+gsp lab compare out/runs/baseline out/runs/candidate --comparison configs/comparison.json --out out/compare
+gsp lab gate out/compare/compare.json --gate configs/gate.json --out out/gate
+gsp lab report out/compare/compare.json --gate out/gate/gate.json --out out/report
+```
+
+To make it your own, replace the simulator and the run hook, keep `probe()` and `policies()` free of heavy imports, regenerate the fixtures with `python tools/build_fixtures.py`, and rerun `gsp lab tasks check`. The contract, the ten fixture cases, the two ways to ship a pack (a separate package, or built in for maintainers) and the risks for the Robomimic pack are in [adding a simulator](docs/lab/adding-a-task.md).
 
 ## Configuration reference
 
@@ -562,9 +699,9 @@ Verdict order: invalid input or coverage beyond the limits gives exit 2; a requi
 
 | Code | Meaning | What to do next |
 | --- | --- | --- |
-| 0 | `policies`: listed. `doctor`: no errors. `run`: all trials recorded. `compare`: comparable. `gate`: pass. `report`: written. `demo`: pass | Go to the next command. |
-| 1 | `doctor`: errors found. `gate` and `demo`: regression | `doctor`: read the findings and their hints. `gate`: run `gsp lab report` and open the first regression. The demo exits 1 by design. |
-| 2 | Input invalid, unreadable or incomplete; setup invalid (`run`); output would overwrite a different file; `gate`: a required check is `unknown` | Read the message on stderr. See [Troubleshooting](#troubleshooting). For a blocked gate, the verdict lists the reasons (missing pairs, incompatible pairs, missing signal). |
+| 0 | `policies`: listed. `doctor`: no errors. `run`: all trials recorded. `compare`: comparable. `gate`: pass. `report`: written. `demo`: pass. `tasks list`: listed. `tasks new`: written. `tasks check`: all checks pass | Go to the next command. |
+| 1 | `doctor`: errors found. `gate` and `demo`: regression. `tasks check`: a check failed | `doctor`: read the findings and their hints. `gate`: run `gsp lab report` and open the first regression. The demo exits 1 by design. |
+| 2 | Input invalid, unreadable or incomplete; setup invalid (`run`); output would overwrite a different file; `gate`: a required check is `unknown`; a task pack that cannot be loaded; `tasks new`: refused; `tasks check`: the pack cannot be loaded | Read the message on stderr. See [Troubleshooting](#troubleshooting). For a blocked gate, the verdict lists the reasons (missing pairs, incompatible pairs, missing signal). |
 | 3 | Usage error or internal error | Run the command with `--help`. Report internal errors with the full message. |
 
 ## Troubleshooting
@@ -577,7 +714,7 @@ Verdict order: invalid input or coverage beyond the limits gives exit 2; a requi
 | `Output directory must be empty; refusing to overwrite <dir>` (run) | The run directory already has files | Use a new `--out`. Earlier runs are never overwritten. |
 | `Policy pusht/dp: unavailable: missing checkpoint ...` | A checkpoint is not in `Push-T/checkpoints/` | Fetch it as described in [Setup and assets](#setup-and-assets). `gsp lab policies` shows the status of every policy. |
 | `Policy pusht/dp: unavailable: missing Python package ...` | The simulator environment is not installed | Install the `pusht` extra. |
-| `pin changed: pusht/dp` | A checkpoint file or the resolved configuration differs from `lab/pins.json` | Restore the original checkpoint. If the change is deliberate, edit the pin in a reviewed commit. |
+| `pin changed: pusht/dp` | A checkpoint file or the resolved configuration differs from `guided_streaming_policy/lab/tasks/pusht/pins.json` | Restore the original checkpoint. If the change is deliberate, edit the pin in a reviewed commit. |
 | `simulator version mismatch: expected '7.2.0', ...` | The comparison config names another pymunk version than the installed one | Install the pinned version, or change `simulator_version` and record why. |
 | `Policy pusht/dp: Unknown tunable 'x'; valid keys: ...` | An override names a setting the policy does not declare | Use one of the listed keys. |
 | `intended_differences[0]: expected policy or overrides.<existing key>` | The entry is misspelled or not in any variant's overrides | Fix the entry or add the override. |
@@ -586,16 +723,24 @@ Verdict order: invalid input or coverage beyond the limits gives exit 2; a requi
 | `missing [static seed=2]: missing episode in candidate run` (compare) | A trial was not recorded | Rerun the missing variant into a new directory. |
 | `incompatible pairs 2 exceed maximum 0`, `missing pairs 2 exceed maximum 0`, `completed pairs 3 below minimum 5` (gate) | Coverage is below what the gate config requires | Fix the runs. Raise the limits only in a reviewed gate-config change. |
 | `insufficient evidence: separation_proxy: signal action_executed.target was not collected` (gate) | The traces lack the signal the rule needs | Record the signal, or change the rule in a reviewed config. The gate never guesses. |
-| `fixtures not found; run from a source checkout of the repository` (demo) | The demo reads `tests/fixtures/lab/`, which is not in a pip-installed wheel | Run it from a clone of the repository. |
+| `fixtures not found for task 'x'` (demo) | The task pack ships no usable synthetic fixture set | Reinstall the pack, or run `gsp lab tasks check x` to see which fixture case is missing. |
+| `Unknown condition 'x'; supported: static, dynamic` (run, compare, gate) | The comparison config names a condition the task pack does not declare | Use one of the listed names, or see `gsp lab tasks list --verbose`. |
+| `Condition 'dynamic' cannot run through gsp lab run: ...` | The pack declares the condition but has no run hook for it yet | Run it with the research scripts, or choose a runnable condition. |
+| `broken: <reason>` in `gsp lab tasks list`, or `Cannot load task 'x': ...` | The pack failed to import or construct. Other packs and commands are unaffected | Fix the pack, or `pip uninstall` it. The reason is the pack's own error. |
+| `task 'x' implements contract version 2; this lab requires version 1` | The pack was written for another contract version | Update the pack, or install the matching lab version. |
+| `task 'x' is claimed by a 1.0 and b 2.0` | Two installed distributions register the same task name | Uninstall one of them. |
+| `Cannot write the task pack: ...` (tasks new) | The name is installed already or invalid, or the output directory is not empty | Choose another name or an empty `--out`. |
+| `missing assets: pin file` in `tasks list` | The pack does not ship its pin file or `fixtures/cases.json` | Rebuild the pack's fixtures; `gsp lab tasks check <name>` shows what is missing. |
 | `gsp lab <command>: error: the following arguments are required: ...` (exit 3) | Missing argument | See the usage line above the message. |
 | The report shows no replay | JavaScript is disabled | Enable it. The verdict, coverage, results and regression list are readable without it. |
 
 ## Supported tasks
 
-| Task | In the lab | Notes |
-| --- | --- | --- |
-| Push-T | Supported: demonstration reader, run hook, five reference policies, fixtures | One condition (`static`). The `dynamic` condition runs through the research scripts only. |
-| Robomimic (`can`, `square`, `lift`) | Not yet | Available through the existing research commands (`gsp run mimic-*`). It comes to the lab through [adding a task](docs/lab/adding-a-task.md). |
+| Task | In the lab | How it ships | Notes |
+| --- | --- | --- | --- |
+| Push-T | Supported: demonstration reader, run hook, five reference policies, fixtures | Built in | Conditions: `static` runs through the lab; `dynamic` is declared and runs through the research scripts only. |
+| Robomimic (`can`, `square`, `lift`) | Not yet | Not yet | Available through the existing research commands (`gsp run mimic-*`). It comes to the lab as a task pack through [adding a simulator](docs/lab/adding-a-task.md). |
+| Your simulator | Through `gsp lab tasks new` | Plugin | A pip-installable pack registered under the `gsp_lab.tasks` entry point. See [Plug in a simulator](#plug-in-a-simulator). |
 
 ## Documentation
 
@@ -608,7 +753,7 @@ Verdict order: invalid input or coverage beyond the limits gives exit 2; a requi
 | [Baseline](docs/lab/baseline.md) | What the Push-T code really exposes, with source references |
 | [Real run](docs/lab/real-run.md) | The validation runs of the reference policies |
 | [Decisions](docs/lab/decisions.md) | Assumptions, alternatives, brand rationale, removal manifest |
-| [Adding a task](docs/lab/adding-a-task.md) | The steps and exit checks for a new task |
+| [Adding a simulator](docs/lab/adding-a-task.md) | The task-pack contract, the two ways to ship a pack, the steps and exit checks, and the Robomimic risks |
 | [Brand guide](docs/brand/BRAND.md) | Name, logo, colour and type rules |
 
 ## Reproducibility, limits and attribution
@@ -622,6 +767,8 @@ This project builds on the Push-T benchmark and the Diffusion Policy codebase (C
 ## Research workspace
 
 The lab sits on top of the research code in this repository: diffusion, flow-matching and streaming stochastic-interpolant policies with guidance methods (STEG, CCG, CAR) for Push-T, and low-dimensional Robomimic scripts for Can, Square and Lift. These commands remain available and unchanged. The component evidence below is not a benchmark and not a claim of improved robot performance.
+
+**Two meanings of "task".** `gsp list-tasks` and `gsp run <script>` drive the legacy research scripts and have nothing to do with the lab. A lab task is a simulator task pack, selected with `--task` on `gsp lab` commands and listed by `gsp lab tasks list`.
 
 ### Try the research CLI without downloads
 
@@ -782,7 +929,7 @@ guided_velocity = car(
 )
 ```
 
-`my_reward_gradients` should return `(batch, rewards, ...)`; for a trajectory, use `(batch, rewards, horizon, action_dim)`. The correction must have the same shape as `base_velocity`. Train the correction online or offline against the task reward, and compare unguided flow, additive guidance, CAR, and CCG under the same seeds and checkpoints. For the full CAR Maze2D planning and ManiSkill2 point-cloud manipulation scripts, follow the upstream experiment READMEs: [https://github.com/yuxuehui/CAR-guidance](https://github.com/yuxuehui/CAR-guidance). To bring a new task into the lab, see [adding a task](docs/lab/adding-a-task.md).
+`my_reward_gradients` should return `(batch, rewards, ...)`; for a trajectory, use `(batch, rewards, horizon, action_dim)`. The correction must have the same shape as `base_velocity`. Train the correction online or offline against the task reward, and compare unguided flow, additive guidance, CAR, and CCG under the same seeds and checkpoints. For the full CAR Maze2D planning and ManiSkill2 point-cloud manipulation scripts, follow the upstream experiment READMEs: [https://github.com/yuxuehui/CAR-guidance](https://github.com/yuxuehui/CAR-guidance). To bring a new simulator into the lab, see [adding a simulator](docs/lab/adding-a-task.md).
 
 ### Development checks
 

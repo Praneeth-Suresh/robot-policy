@@ -34,7 +34,7 @@ The verdict is whatever the declared rule produces. Nothing is tuned afterwards.
 | Gate evidence | The separation rule is judged on candidate episodes; baseline values are reported but do not affect the verdict. A rule with both a failing and an unknown episode is `fail`. Exit 2 (blocked) is checked before exit 1 | Judging both sides would blame the candidate for baseline behaviour. |
 | Integrity | `compare.json` stores sha256 of every episode's `manifest.json` and `steps.jsonl`; the gate refuses traces that changed after the comparison | A self-contained compare file would duplicate all traces. |
 | Optional schema fields | `geometry`, `synthetic`, `outcome.native`, `outcome.detail` | Needed by the separation check, the report and the real-run cross-check. They are additive and optional; `schema_version` stays `0.1` because the schema had not been published. |
-| Checkpoint identity | `checkpoint_sha256` in a manifest is the sha256 of the sorted `{path: sha256}` map of the policy's checkpoint files, taken from `lab/pins.json` | A policy can use two checkpoint files (`pusht/ccg`). |
+| Checkpoint identity | `checkpoint_sha256` in a manifest is the sha256 of the sorted `{path: sha256}` map of the policy's checkpoint files, taken from `guided_streaming_policy/lab/tasks/pusht/pins.json` | A policy can use two checkpoint files (`pusht/ccg`). |
 | Report assets | `lab/assets/` holds byte copies of three brand SVGs; a test checks they equal `docs/brand/` | Reading `docs/brand/` at run time would break pip installs. |
 | Dev tools | `ruff`, `mypy` (strict, `lab` package only), `vulture`, `jsonschema`, in an optional `dev` extra | The repository had none. They are not installed by default. |
 | CI | One new workflow, `.github/workflows/lab.yml`; the repository had no CI | No existing check changed. |
@@ -52,9 +52,28 @@ Design skill: `frontend-design` from <https://github.com/anthropics/skills> (Apa
 - Wordmark: drawn as strokes, so it does not depend on a font. The dot of the "i" is the marker.
 - Limits: the text inside `pipeline*.svg` uses system fonts and can differ between platforms. The 1280 x 640 social preview was rendered with Chrome from the banner and system text.
 
+## Pluggable simulators (follow-up release)
+
+| Topic | Decision | Alternatives considered |
+| --- | --- | --- |
+| Contract version | `CONTRACT_VERSION = 1` in `tasks/base.py`; a pack declares `contract_version`; the registry refuses a different number and names both | Feature detection: it hides which side is out of date. |
+| Conditions | `ConditionSpec(name, description, runnable=True)`. Push-T declares `static` (runnable) and `dynamic` (declared, `runnable=False`: it runs through the research scripts only) | The prompt lists both conditions for Push-T, but the run hook records only the static runners. Declaring `dynamic` as runnable would record a crashed trial per cell; the third field makes `gsp lab run` refuse it with the reason. This is the one addition to the specified `ConditionSpec(name, description)`. |
+| Discovery | Entry-point group `gsp_lab.tasks`, read from package metadata (`importlib.metadata.distributions()`, so it works on Python 3.10). Push-T registers the same way in `pyproject.toml`. A doubly claimed name is a per-name error, not a global one | A hard-coded dictionary: it cannot be extended from outside. `entry_points()` alone: its distribution lookup arrives only in 3.11. |
+| `tasks list` status | `ready` means the pack loads, its contract matches, and it ships its pin file and `cases.json`. `missing assets: ...` and `broken: ...` otherwise. Simulator packages and checkpoints are per policy (`gsp lab policies`) | Counting checkpoints in the status would show `pusht` as not ready in any plain `pip install`, which the acceptance run requires to be `ready`. |
+| Packaged data | Push-T fixtures and `pins.json` moved into `guided_streaming_policy/lab/tasks/pusht/` as package data and are found with `importlib.resources`. The goldens stay in `tests/fixtures/lab/golden/` | Keeping them in `tests/`: the demo then needs a source checkout. |
+| Fixture declarations | Each pack ships `fixtures/cases.json`: the expected Doctor, compare and gate result of the ten cases, and the demo exit code. `FixtureSet` gained `root` | Hard-coding expectations in the kit: they differ per pack. |
+| Conformance kit | `lab/testing.py`, standard library only. Checks that need a fresh interpreter (`no_heavy_imports`, `offline_demo`) run it in a subprocess, and the demo check registers the pack with `registry.register` in that child | Importing `cli` in the kit: the kit may not depend on `cli`. |
+| Scaffold | Text templates in `lab/scaffold/`. `tasks new` writes them with `string.Template`, then runs the pack's own `tools/build_fixtures.py`, which builds the scenario runs with the real simulator and the lab's exporter and edits a few into the ten cases | Committing generated fixtures into the templates: they could drift from the simulator. |
+| Rail pack dependency | `guided-streaming-policy>=0.1`, installed from this repository, not an index | Vendoring the lab: it would fork the contract. |
+| Report and one dimension | The scaffold records no `arena.size`: the report's top-down panels need two dimensions. The signal plots work for any dimension | Letting the report draw one-dimensional panels: out of scope. |
+| `cli_tasks.py` | The `tasks` group lives in its own module; `gate.py` shed 87 lines of comparison-document validation to `pairing.py` (`comparison_errors`) so neither is near the 400-line limit | Adding to `cli.py` (355 lines) and `gate.py` (399): over the limit. |
+| Quality boundary | `ruff`, `mypy` and `vulture` stay strict on `lab` and `tests/lab` only (about 2,250 `ruff` findings elsewhere, in legacy code); stated in `architecture.md` | Gating the whole repository: it would block unrelated work. |
+| Reproducibility pages | Not merged: one is the research preservation policy, the other the lab's pins and regeneration commands. They link to each other | Merging: they answer different questions. |
+| Not done | No simulator other than Push-T and the sample rail pack. Robomimic stays a later pack | |
+
 ## Removal manifest
 
-Every pre-existing file in the starting commit `6a0b8ad` has one action. Nothing has been deleted: rows marked **proposed** wait for the maintainer's approval (`AGENTS.md` requires an itemised list before any root documentation is deleted or consolidated). If you approve none of them, the tree stays valid.
+Every pre-existing file in the starting commit `6a0b8ad` has one action. The removals proposed in the first release were approved by the maintainer in the v3 follow-up prompt (2026-11-27), which serves as the itemised approval that `AGENTS.md` asks for. They were carried out on the branch `feature/lab-simulator-plugins`, in the commit with the subject `chore: remove approved files and scratch page`.
 
 ### Moved, rewritten or changed
 
@@ -66,14 +85,21 @@ Every pre-existing file in the starting commit `6a0b8ad` has one action. Nothing
 | `uv.lock` | changed | Resolves the new `dev` extra; no existing package version changed. |
 | `.gitignore` | changed | Adds `out/` (lab outputs). |
 | `.beryl/agent/architecture.md`, `ubiquitous-language.md`, `testing-policy.md` | changed | Durable decisions, terms and the new lint, type and dead-code commands, as `AGENTS.md` requires. |
-| `.beryl/agent/project-brief.md` | changed (only if `curriculum.md` is removed) | Drops the `curriculum.md` mention in the documentation row. |
+| `tests/fixtures/lab/pusht/**` | moved | To `guided_streaming_policy/lab/tasks/pusht/fixtures/` as package data, so `gsp lab demo` works from a pip install. The goldens stay in `tests/fixtures/lab/golden/`. |
+| `lab/pins.json` | moved | To `guided_streaming_policy/lab/tasks/pusht/pins.json` as package data, for the same reason. |
+| `lab/tasks/registry.py` | rewritten | Reads the `gsp_lab.tasks` entry-point group instead of a dictionary. |
+| `tests/lab/test_toy_task_contract.py` | rewritten | Built on the conformance kit and the scaffolded rail pack. |
+| `tests/lab/test_hygiene.py` | changed | The scratch-file pattern test became a root-file allow-list. |
+| `docs/lab/adding-a-task.md` | rewritten | Retitled "Adding a simulator"; two routes. |
+| `.beryl/agent/project-brief.md` | changed | Drops the `curriculum.md` mention in the documentation row. |
 
-### Removed (proposed)
+### Removed (approved by the maintainer)
 
 | Path | Action | Reason | What is lost | Where it lives |
 | --- | --- | --- | --- | --- |
 | `curriculum.md` | remove | A personal study plan. No code, test, command or lab document uses it, so it does not contribute to the lab. | The reading list and build tasks for learning the methods. | Git history (`6a0b8ad`). The paper references the lab needs are in the README and the policy registry. |
 | `Robomimic/si_can_results/streaming_si_ode.gif`, `Robomimic/si_can_results/streaming_si_sde.gif` | remove | Generated result files committed by mistake; the repository's own rule is that result directories are gitignored (`.gitignore` ignores `Robomimic/si_*_results/`). Nothing references them. | Two sample GIFs. | Git history. |
+| `p.html` | remove | A brand-preview page committed by mistake in `0094789`. It was in no manifest and nothing references it. | A scratch page. | Git history. |
 
 ### Kept, with the reason
 

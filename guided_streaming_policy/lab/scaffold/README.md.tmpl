@@ -1,0 +1,55 @@
+# $name
+
+A Policy Trace Lab task pack: a cart on a one-dimensional rail. It must stop at the goal
+(0.4 m) and keep away from a virtual wall further along the rail. The simulator is about
+sixty lines of Python in `$module/simulator.py`, so everything here runs offline with no
+assets. Use it as a template for your own simulator.
+
+| Policy | What it does |
+| --- | --- |
+| `$name/steady` | Commands the goal directly; stops at the goal and stays clear of the wall. |
+| `$name/eager` | Commands far beyond the goal; reaches it, but overshoots toward the wall. |
+| `$name/slow` | Commands a tiny step; never reaches the goal within 200 steps. |
+
+Conditions: `nominal` (wall at 0.55 m) and `close_wall` (wall at 0.48 m).
+
+## Install and check
+
+Run these from this directory, in an environment where `guided-streaming-policy` is installed.
+
+```bash
+pip install .
+gsp lab tasks list
+gsp lab tasks check $name
+gsp lab demo --task $name --out out/demo
+```
+
+`gsp lab tasks check` runs the conformance kit: the contract version, the schemas on a
+recorded sample, the ten fixture cases, pins, and a same-seed reset fingerprint check. The
+demo exits 1 by design: its fixture holds a seeded regression.
+
+## Compare two policies
+
+`configs/comparison.json` compares `$name/steady` with `$name/eager` over seeds 0 to 3;
+`configs/gate.json` holds the release rule. Commit both before you look at results.
+
+```bash
+gsp lab run --comparison configs/comparison.json --variant baseline --out out/runs/baseline
+gsp lab run --comparison configs/comparison.json --variant candidate --out out/runs/candidate
+gsp lab doctor out/runs/baseline --out out/doctor-baseline
+gsp lab compare out/runs/baseline out/runs/candidate --comparison configs/comparison.json --out out/compare
+gsp lab gate out/compare/compare.json --gate configs/gate.json --out out/gate
+gsp lab report out/compare/compare.json --gate out/gate/gate.json --out out/report
+```
+
+The gate exits 1: `$name/eager` reaches the goal, so native success holds, but it comes
+closer to the wall than the 0.1 m threshold. Open `out/report/report.html` to replay it.
+
+## Make it your own
+
+1. Replace the simulator in `$module/simulator.py` and the run hook in `$module/adapter.py`.
+2. Keep `probe()` and `policies()` free of heavy imports: use `importlib.util.find_spec`.
+3. Regenerate the fixtures and pins with `python tools/build_fixtures.py`, then run
+   `python -m unittest discover -s tests` and `gsp lab tasks check $name`.
+
+The contract is described in "Adding a simulator" in the Policy Trace Lab documentation.
